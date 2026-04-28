@@ -85,9 +85,5 @@ function apiPlugin(): Plugin {
 export default defineConfig({
   vite: {
     plugins: [apiPlugin()],
-    ssr: {
-      noExternal: [],
-      external: ["nodemailer"],
-    },
   },
 });
