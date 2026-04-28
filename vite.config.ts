@@ -83,6 +83,12 @@ function apiPlugin(): Plugin {
 }
 
 export default defineConfig({
+  cloudflare: false,
+  tanstackStart: {
+    server: {
+      preset: "netlify",
+    },
+  },
   vite: {
     plugins: [apiPlugin()],
   },
