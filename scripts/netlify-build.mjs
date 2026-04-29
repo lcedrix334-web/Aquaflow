@@ -57,7 +57,7 @@ entryJs = entryJs.replace(
 );
 
 // Patch 3: Ensure window.$_TSR exists to prevent other invariant checks from failing
-const tsrPolyfill = 'window.$_TSR||(window.$_TSR={router:{matches:[],lastMatchId:0,manifest:{},dehydratedData:null},buffer:[],initialized:!0});';
+const tsrPolyfill = 'window.$_TSR||(window.$_TSR={router:{matches:[],lastMatchId:0,manifest:{},dehydratedData:null},buffer:[],initialized:!0,h:function(){}});';
 entryJs = tsrPolyfill + entryJs;
 
 writeFileSync(entryJsPath, entryJs);
