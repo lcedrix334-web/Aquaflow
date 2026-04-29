@@ -1,9 +1,9 @@
-import server from "../../dist/server/server.js";
+import server from "./server-dist/server.js";
 
 export default async (req, context) => {
   const protocol = req.headers["x-forwarded-proto"] || "https";
   const host = req.headers["host"] || "localhost";
-  const url = new URL(req.url, `${protocol}://${host}`);
+  const url = new URL(req.url, protocol + "://" + host);
 
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
@@ -12,12 +12,16 @@ export default async (req, context) => {
     }
   }
 
-  const webRequest = new Request(url.toString(), {
+  const init = {
     method: req.method,
     headers,
-    body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
-  });
+  };
 
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    init.body = req.body;
+  }
+
+  const webRequest = new Request(url.toString(), init);
   const response = await server.fetch(webRequest);
 
   const responseHeaders = {};
@@ -33,4 +37,5 @@ export default async (req, context) => {
 
 export const config = {
   path: "/*",
+  included_files: ["server-dist/**"],
 };
