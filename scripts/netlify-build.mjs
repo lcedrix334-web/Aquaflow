@@ -212,4 +212,21 @@ console.log("Created Netlify API functions");
 writeFileSync(join(clientDir, "_redirects"), "/*    /index.html   200\n");
 console.log("Created dist/client/_redirects for SPA routing");
 
+// ── 4. Copy client files to dist/ root as fallback ──
+// If Netlify UI overrides netlify.toml and publishes "dist" instead of "dist/client",
+// the correct index.html and assets must exist at dist/ root level.
+import { cpSync } from "fs";
+
+// Copy index.html
+writeFileSync(join(distDir, "index.html"), indexHtml);
+console.log("Copied index.html to dist/ root");
+
+// Copy _redirects
+writeFileSync(join(distDir, "_redirects"), "/*    /index.html   200\n");
+console.log("Copied _redirects to dist/ root");
+
+// Copy assets directory
+cpSync(join(clientDir, "assets"), join(distDir, "assets"), { recursive: true });
+console.log("Copied assets/ to dist/ root");
+
 console.log("Netlify build post-processing complete.");
