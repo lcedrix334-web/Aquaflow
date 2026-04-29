@@ -1,8 +1,10 @@
-import serverFetch from "../../dist/server/server.js";
+import server from "../../dist/server/server.js";
 
 export default async (req, context) => {
-  const url = new URL(req.url);
-  url.protocol = "https:";
+  const protocol = req.headers["x-forwarded-proto"] || "https";
+  const host = req.headers["host"] || "localhost";
+  const url = new URL(req.url, `${protocol}://${host}`);
+
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
     if (value) {
@@ -16,7 +18,7 @@ export default async (req, context) => {
     body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
   });
 
-  const response = await serverFetch.fetch(webRequest);
+  const response = await server.fetch(webRequest);
 
   const responseHeaders = {};
   response.headers.forEach((value, key) => {
