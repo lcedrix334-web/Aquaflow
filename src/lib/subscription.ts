@@ -9,7 +9,7 @@ export async function getSubscriptionStatus(
     .from("subscriptions")
     .select("status, email")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     return { status: "none", email: null };
