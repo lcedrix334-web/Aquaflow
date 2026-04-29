@@ -22,6 +22,7 @@ dist-ssr
 
 # Netlify
 .netlify/
+netlify/functions/server-dist/
 
 # Editor directories and files
 .vscode/*
