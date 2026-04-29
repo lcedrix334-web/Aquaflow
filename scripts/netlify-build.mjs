@@ -43,11 +43,11 @@ console.log("Created dist/client/index.html");
 const entryJsPath = join(assetsDir, jsEntry);
 let entryJs = readFileSync(entryJsPath, "utf-8");
 
-// Replace hydrateRoot(document,...) with createRoot(document).render(...)
-// Pattern: something.hydrateRoot(document,jsx) => something.createRoot(document).render(jsx)
+// Replace hydrateRoot(document,...) with createRoot(document.getElementById('root')).render(...)
+// hydrateRoot accepts the document node, but createRoot requires an element container
 entryJs = entryJs.replace(
   /\.hydrateRoot\(document,/,
-  ".createRoot(document).render("
+  ".createRoot(document.getElementById('root')).render("
 );
 
 writeFileSync(entryJsPath, entryJs);
