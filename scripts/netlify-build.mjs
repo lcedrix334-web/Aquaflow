@@ -1,4 +1,4 @@
-import { writeFileSync, readdirSync, readFileSync, statSync, cpSync } from "fs";
+import { writeFileSync, readdirSync, readFileSync, statSync, cpSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 
 const distDir = join(process.cwd(), "dist");
@@ -36,41 +36,54 @@ ${cssFile ? `  <link rel="stylesheet" href="./assets/${cssFile}" />` : ""}
 </html>
 `;
 
-writeFileSync(join(clientDir, "index.html"), indexHtml);
-console.log("Created dist/client/index.html");
-
-// ── 1b. Patch client entry: replace hydrateRoot with createRoot for SPA mode ──
+// ── 2. Patch client entry JS for pure SPA mode (no SSR hydration) ──
 const entryJsPath = join(assetsDir, jsEntry);
 let entryJs = readFileSync(entryJsPath, "utf-8");
 
-// Replace hydrateRoot(document,...) with createRoot(document.getElementById('root')).render(...)
-// hydrateRoot accepts the document node, but createRoot requires an element container
+// Patch 1: Replace hydrateRoot(document,jsx) with createRoot(container).render(jsx)
 entryJs = entryJs.replace(
   /\.hydrateRoot\(document,/,
   ".createRoot(document.getElementById('root')).render("
 );
 
+// Patch 2: Skip SSR hydration — the E1 function requires window.$_TSR which only exists
+// when the server pre-renders the page. In pure SPA mode, this data doesn't exist,
+// causing "Invariant failed" at runtime.
+// The code pattern is: n.stores.matchesId.get().length||await E1(n)
+// We change it to skip E1 entirely: n.stores.matchesId.get().length||void 0
+entryJs = entryJs.replace(
+  /\.get\(\)\.length\|\|await [A-Za-z0-9_$]+\(/g,
+  ".get().length||void 0;void ("
+);
+
+// Patch 3: Ensure window.$_TSR exists to prevent other invariant checks from failing
+const tsrPolyfill = 'window.$_TSR||(window.$_TSR={router:{matches:[],lastMatchId:0,manifest:{},dehydratedData:null},buffer:[],initialized:!0});';
+entryJs = tsrPolyfill + entryJs;
+
 writeFileSync(entryJsPath, entryJs);
-console.log("Patched client entry: hydrateRoot -> createRoot");
+console.log("Patched client entry: SSR hydration disabled, SPA mode enabled");
 
-// ── 2. Create _redirects file for SPA routing ──
-writeFileSync(join(clientDir, "_redirects"), "/*    /index.html   200\n");
-console.log("Created dist/client/_redirects for SPA routing");
-
-// ── 3. Copy client files to dist/ root as fallback ──
-// If Netlify UI overrides netlify.toml and publishes "dist" instead of "dist/client",
-// the correct index.html and assets must exist at dist/ root level.
-
-// Copy index.html
+// ── 3. Move client files to dist/ root (flatten structure) ──
 writeFileSync(join(distDir, "index.html"), indexHtml);
-console.log("Copied index.html to dist/ root");
+console.log("Created dist/index.html");
 
-// Copy _redirects
 writeFileSync(join(distDir, "_redirects"), "/*    /index.html   200\n");
-console.log("Copied _redirects to dist/ root");
+console.log("Created dist/_redirects");
 
-// Copy assets directory
-cpSync(join(clientDir, "assets"), join(distDir, "assets"), { recursive: true });
+const distAssetsDir = join(distDir, "assets");
+if (existsSync(distAssetsDir)) {
+  rmSync(distAssetsDir, { recursive: true });
+}
+cpSync(assetsDir, distAssetsDir, { recursive: true });
 console.log("Copied assets/ to dist/ root");
+
+rmSync(clientDir, { recursive: true });
+console.log("Removed dist/client/");
+
+const serverDir = join(distDir, "server");
+if (existsSync(serverDir)) {
+  rmSync(serverDir, { recursive: true });
+  console.log("Removed dist/server/");
+}
 
 console.log("Netlify build post-processing complete.");
