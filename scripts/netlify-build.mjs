@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, readdirSync } from "fs";
+import { mkdirSync, writeFileSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 
 const distDir = join(process.cwd(), "dist");
@@ -30,6 +30,20 @@ ${cssFile ? `  <link rel="stylesheet" href="/assets/${cssFile}" />` : ""}
 
 writeFileSync(join(clientDir, "index.html"), indexHtml);
 console.log("Created dist/client/index.html");
+
+// ── 1b. Patch client entry: replace hydrateRoot with createRoot for SPA mode ──
+const entryJsPath = join(assetsDir, jsEntry);
+let entryJs = readFileSync(entryJsPath, "utf-8");
+
+// Replace hydrateRoot(document,...) with createRoot(document).render(...)
+// Pattern: something.hydrateRoot(document,jsx) => something.createRoot(document).render(jsx)
+entryJs = entryJs.replace(
+  /\.hydrateRoot\(document,/,
+  ".createRoot(document).render("
+);
+
+writeFileSync(entryJsPath, entryJs);
+console.log("Patched client entry: hydrateRoot -> createRoot");
 
 // ── 2. Create self-contained Netlify API functions ──
 mkdirSync(functionsDir, { recursive: true });
