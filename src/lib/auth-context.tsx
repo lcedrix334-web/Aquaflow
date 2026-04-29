@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Small delay to let the DB trigger finish creating the subscription row
         await new Promise((r) => setTimeout(r, 1500));
 
-        const res = await fetch("/api/send-confirmation", {
+        const res = await fetch("/.netlify/functions/send-confirmation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

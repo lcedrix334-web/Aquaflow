@@ -25,7 +25,7 @@ export async function sendConfirmationEmail(
   confirmationToken: string
 ): Promise<{ success: boolean; error: string | null }> {
   try {
-    const res = await fetch("/api/send-confirmation", {
+    const res = await fetch("/.netlify/functions/send-confirmation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -44,7 +44,7 @@ export async function confirmSubscription(
   token: string
 ): Promise<{ success: boolean; error: string | null; email?: string }> {
   try {
-    const res = await fetch("/api/confirm-subscription", {
+    const res = await fetch("/.netlify/functions/confirm-subscription", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),

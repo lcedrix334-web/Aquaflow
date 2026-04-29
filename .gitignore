@@ -24,8 +24,6 @@ dist-ssr
 .netlify/
 netlify/functions/server-dist/
 netlify/functions/api-src/
-netlify/functions/send-confirmation.js
-netlify/functions/confirm-subscription.js
 
 # Editor directories and files
 .vscode/*
