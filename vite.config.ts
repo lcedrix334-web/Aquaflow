@@ -88,6 +88,7 @@ export default defineConfig({
     ssr: false,
   },
   vite: {
+    base: "./",
     plugins: [apiPlugin()],
   },
 });

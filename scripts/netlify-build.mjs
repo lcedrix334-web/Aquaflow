@@ -28,8 +28,8 @@ const indexHtml = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AquaFlow</title>
   <meta name="description" content="AquaFlow is an automated ESP32 irrigation system that delivers the right amount of water at the right time using soil moisture sensors." />
-${cssFile ? `  <link rel="stylesheet" href="/assets/${cssFile}" />` : ""}
-  <script type="module" src="/assets/${jsEntry}"></script>
+${cssFile ? `  <link rel="stylesheet" href="./assets/${cssFile}" />` : ""}
+  <script type="module" src="./assets/${jsEntry}"></script>
 </head>
 <body>
   <div id="root"></div>
@@ -207,4 +207,9 @@ export const config = {
 writeFileSync(join(functionsDir, "confirm-subscription.js"), confirmSubscriptionFn);
 
 console.log("Created Netlify API functions");
+
+// ── 3. Create _redirects file for SPA routing ──
+writeFileSync(join(clientDir, "_redirects"), "/*    /index.html   200\n");
+console.log("Created dist/client/_redirects for SPA routing");
+
 console.log("Netlify build post-processing complete.");
