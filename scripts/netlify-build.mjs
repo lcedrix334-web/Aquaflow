@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, readdirSync, readFileSync } from "fs";
+import { mkdirSync, writeFileSync, readdirSync, readFileSync, statSync } from "fs";
 import { join } from "path";
 
 const distDir = join(process.cwd(), "dist");
@@ -10,7 +10,16 @@ const assetsDir = join(clientDir, "assets");
 const assetFiles = readdirSync(assetsDir);
 
 const cssFile = assetFiles.find(f => f.endsWith(".css"));
-const jsEntry = assetFiles.find(f => f.startsWith("index-") && f.endsWith(".js"));
+// Find the main entry JS (largest index-*.js — route components also start with "index-" but are smaller)
+const indexJsFiles = assetFiles.filter(f => f.startsWith("index-") && f.endsWith(".js"));
+let jsEntry = indexJsFiles[0];
+if (indexJsFiles.length > 1) {
+  jsEntry = indexJsFiles.reduce((largest, f) => {
+    const size = statSync(join(assetsDir, f)).size;
+    const largestSize = statSync(join(assetsDir, largest)).size;
+    return size > largestSize ? f : largest;
+  });
+}
 
 const indexHtml = `<!DOCTYPE html>
 <html lang="en" class="dark">
