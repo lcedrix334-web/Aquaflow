@@ -2,10 +2,16 @@ import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
 import nodemailer from "nodemailer";
 
+const json = (data: object, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+  });
+
 export default async function handler(req: Request) {
   if (req.method === "OPTIONS") {
-    return new Response("", {
-      status: 200,
+    return new Response(null, {
+      status: 204,
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type",
@@ -15,27 +21,22 @@ export default async function handler(req: Request) {
   }
 
   if (req.method !== "POST") {
-    return Response.json({ error: "Method not allowed" }, { status: 405 });
+    return json({ error: "Method not allowed" }, 405);
   }
 
   try {
-    const { user_id, email } = await req.json();
+    const body = await req.text();
+    const { user_id, email } = JSON.parse(body);
 
     if (!user_id || !email) {
-      return Response.json(
-        { success: false, error: "Missing required fields" },
-        { status: 400 }
-      );
+      return json({ success: false, error: "Missing required fields" }, 400);
     }
 
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      return Response.json(
-        { success: false, error: "Server configuration error" },
-        { status: 500 }
-      );
+      return json({ success: false, error: "Server configuration error" }, 500);
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -46,14 +47,14 @@ export default async function handler(req: Request) {
       .from("subscriptions")
       .select("confirmation_token, status")
       .eq("user_id", user_id)
-      .single();
+      .maybeSingle();
 
     let token: string;
 
     if (existing) {
       const row = existing as unknown as { confirmation_token: string; status: string };
       if (row.status === "active") {
-        return Response.json({ success: true, error: null });
+        return json({ success: true, error: null });
       }
       token = row.confirmation_token;
     } else {
@@ -68,10 +69,7 @@ export default async function handler(req: Request) {
         });
 
       if (insertError) {
-        return Response.json(
-          { success: false, error: "Failed to create subscription" },
-          { status: 500 }
-        );
+        return json({ success: false, error: "Failed to create subscription" }, 500);
       }
     }
 
@@ -82,10 +80,7 @@ export default async function handler(req: Request) {
     const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
 
     if (!gmailUser || !gmailAppPassword) {
-      return Response.json(
-        { success: false, error: "Email service not configured" },
-        { status: 500 }
-      );
+      return json({ success: false, error: "Email service not configured" }, 500);
     }
 
     const transporter = nodemailer.createTransport({
@@ -137,13 +132,10 @@ export default async function handler(req: Request) {
     });
 
     console.log(`Confirmation email sent to ${email}`);
-    return Response.json({ success: true, error: null });
+    return json({ success: true, error: null });
   } catch (err) {
     console.error("send-confirmation error:", err);
-    return Response.json(
-      { success: false, error: String(err) },
-      { status: 500 }
-    );
+    return json({ success: false, error: String(err) }, 500);
   }
 }
 
