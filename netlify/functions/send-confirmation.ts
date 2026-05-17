@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 const json = (data: object, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -9,7 +9,12 @@ const json = (data: object, status = 200) =>
   });
 
 export default async function handler(req: Request) {
+  console.log("[send-confirmation] Function invoked");
+  console.log("[send-confirmation] Method:", req.method);
+  console.log("[send-confirmation] Headers:", Object.fromEntries(req.headers.entries()));
+
   if (req.method === "OPTIONS") {
+    console.log("[send-confirmation] Handling CORS preflight");
     return new Response(null, {
       status: 204,
       headers: {
@@ -21,44 +26,63 @@ export default async function handler(req: Request) {
   }
 
   if (req.method !== "POST") {
+    console.log("[send-confirmation] Method not allowed:", req.method);
     return json({ error: "Method not allowed" }, 405);
   }
 
   try {
     const body = await req.text();
+    console.log("[send-confirmation] Request body:", body);
+    
     const { user_id, email } = JSON.parse(body);
 
     if (!user_id || !email) {
+      console.error("[send-confirmation] Missing required fields:", { user_id, email });
       return json({ success: false, error: "Missing required fields" }, 400);
     }
+
+    console.log("[send-confirmation] Processing for user_id:", user_id, "email:", email);
 
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("[send-confirmation] Missing Supabase configuration");
       return json({ success: false, error: "Server configuration error" }, 500);
     }
 
+    console.log("[send-confirmation] Connecting to Supabase");
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
     });
 
-    const { data: existing } = await supabase
+    console.log("[send-confirmation] Checking for existing subscription");
+    const { data: existing, error: fetchError } = await supabase
       .from("subscriptions")
       .select("confirmation_token, status")
       .eq("user_id", user_id)
       .maybeSingle();
 
+    if (fetchError) {
+      console.error("[send-confirmation] Error fetching subscription:", fetchError);
+      return json({ success: false, error: "Failed to fetch subscription" }, 500);
+    }
+
     let token: string;
 
     if (existing) {
       const row = existing as unknown as { confirmation_token: string; status: string };
+      console.log("[send-confirmation] Existing subscription found with status:", row.status);
       if (row.status === "active") {
+        console.log("[send-confirmation] Subscription already active, no email needed");
         return json({ success: true, error: null });
       }
       token = row.confirmation_token;
+      console.log("[send-confirmation] Using existing token");
     } else {
       token = randomBytes(32).toString("hex");
+      console.log("[send-confirmation] Generated new token");
+      
       const { error: insertError } = await supabase
         .from("subscriptions")
         .insert({
@@ -69,29 +93,26 @@ export default async function handler(req: Request) {
         });
 
       if (insertError) {
+        console.error("[send-confirmation] Failed to create subscription:", insertError);
         return json({ success: false, error: "Failed to create subscription" }, 500);
       }
+      console.log("[send-confirmation] Created new subscription with pending status");
     }
 
     const baseUrl = process.env.URL || "http://localhost:8080";
     const confirmationUrl = `${baseUrl}/confirm?token=${token}`;
+    console.log("[send-confirmation] Confirmation URL:", confirmationUrl);
 
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const resendFromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 
-    if (!gmailUser || !gmailAppPassword) {
+    if (!resendApiKey) {
+      console.error("[send-confirmation] Missing RESEND_API_KEY environment variable");
       return json({ success: false, error: "Email service not configured" }, 500);
     }
 
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: gmailUser,
-        pass: gmailAppPassword,
-      },
-    });
+    console.log("[send-confirmation] Initializing Resend client");
+    const resend = new Resend(resendApiKey);
 
     const htmlBody = `
       <div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 16px; color: #e2e8f0;">
@@ -124,18 +145,33 @@ export default async function handler(req: Request) {
       </div>
     `;
 
-    await transporter.sendMail({
-      from: `"AquaFlow" <${gmailUser}>`,
+    console.log("[send-confirmation] Sending email via Resend API");
+    console.log("[send-confirmation] From:", resendFromEmail);
+    console.log("[send-confirmation] To:", email);
+
+    const emailResult = await resend.emails.send({
+      from: resendFromEmail,
       to: email,
       subject: "AquaFlow Subscription Confirmation",
       html: htmlBody,
     });
 
-    console.log(`Confirmation email sent to ${email}`);
-    return json({ success: true, error: null });
+    console.log("[send-confirmation] Resend API response:", JSON.stringify(emailResult));
+
+    if (emailResult.error) {
+      console.error("[send-confirmation] Resend API error:", emailResult.error);
+      return json({ success: false, error: `Failed to send email: ${emailResult.error.message}` }, 500);
+    }
+
+    console.log(`[send-confirmation] Confirmation email sent successfully to ${email}`);
+    console.log(`[send-confirmation] Email ID: ${emailResult.data?.id}`);
+    
+    return json({ success: true, error: null, emailId: emailResult.data?.id });
   } catch (err) {
-    console.error("send-confirmation error:", err);
-    return json({ success: false, error: String(err) }, 500);
+    console.error("[send-confirmation] Unexpected error:", err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error("[send-confirmation] Error details:", errorMessage);
+    return json({ success: false, error: errorMessage }, 500);
   }
 }
 

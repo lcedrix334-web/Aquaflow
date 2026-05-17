@@ -1,3 +1,21 @@
+// ============================================================================
+// DEPRECATED: This file is no longer used in production
+// ============================================================================
+// 
+// This custom TLS-based SMTP implementation has been replaced with Resend API.
+// 
+// REASON FOR DEPRECATION:
+// - Netlify Functions block outbound SMTP ports (465, 587, 25)
+// - This implementation uses port 465 which fails in production
+// - Complex socket-based implementation is error-prone
+// 
+// NEW IMPLEMENTATION:
+// - Email sending now uses Resend API (HTTP-based, no SMTP ports needed)
+// - See: netlify/functions/send-confirmation.ts
+// 
+// DATE: May 17, 2026
+// ============================================================================
+
 // Gmail SMTP client using Node's built-in tls module
 // (nodemailer doesn't work in Vite SSR environment)
 
