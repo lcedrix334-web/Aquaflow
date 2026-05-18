@@ -5,7 +5,7 @@ import { AquaLogo } from "@/components/AquaLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Mail, Lock } from "lucide-react";
+import { User, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/signup")({
@@ -21,8 +21,8 @@ export const Route = createFileRoute("/signup")({
 function SignupPage() {
   const { signUp, user } = useAuth();
   const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -41,14 +41,18 @@ function SignupPage() {
       toast.error("Password must be at least 6 characters");
       return;
     }
+    if (!firstName.trim() || !lastName.trim()) {
+      toast.error("Please enter your first and last name");
+      return;
+    }
     setLoading(true);
-    const { error } = await signUp(name, email, password);
+    const { error } = await signUp(firstName, lastName, password);
     setLoading(false);
     if (error) {
       toast.error(error);
       return;
     }
-    toast.success("Account created! Check your email to confirm your subscription.");
+    toast.success("Account created successfully! Welcome to AquaFlow.");
     navigate({ to: "/dashboard" });
   }
 
@@ -72,32 +76,30 @@ function SignupPage() {
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="firstName">First Name</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  id="name"
+                  id="firstName"
                   required
-                  placeholder="Jane Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Jane"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="lastName">Last Name</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  id="email"
-                  type="email"
+                  id="lastName"
                   required
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Doe"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -138,10 +140,9 @@ function SignupPage() {
             </div>
 
             <div className="rounded-lg border border-water/20 bg-water/5 p-3 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Subscription Notice</p>
+              <p className="font-medium text-foreground mb-1">Welcome to AquaFlow</p>
               <p>
-                By creating an account, you agree to receive a confirmation email for our subscription service. AquaFlow operates on a{" "}
-                <span className="font-semibold text-foreground">₱499 monthly plan</span> which includes system automation, monitoring, and maintenance. Subscription activation requires user confirmation via email.
+                Create your account to access the AquaFlow irrigation system dashboard and start monitoring your water usage in real-time.
               </p>
             </div>
 

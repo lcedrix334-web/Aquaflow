@@ -28,7 +28,6 @@ import {
   Activity,
   Cpu,
   Sprout,
-  Mail,
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -56,7 +55,7 @@ interface ActivityLog {
 }
 
 function Dashboard() {
-  const { user, loading, signOut, subscriptionStatus, subscriptionLoading, refreshSubscription } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
 
   // ---- Auth guard ----
@@ -167,7 +166,7 @@ function Dashboard() {
 
   const flowRate = pumpOn && valveOpen ? (1.8 + Math.random() * 0.8).toFixed(1) : "0.0";
 
-  if (loading || !user || subscriptionLoading) {
+  if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-muted-foreground">Loading dashboard...</div>
@@ -175,64 +174,13 @@ function Dashboard() {
     );
   }
 
-  // Subscription gate: show notice if not yet active
-  if (subscriptionStatus === "pending" || subscriptionStatus === "none") {
-    return (
-      <div className="min-h-screen">
-        <header className="sticky top-0 z-40 border-b border-border/40 bg-background/70 backdrop-blur-xl">
-          <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-            <Link to="/">
-              <AquaLogo />
-            </Link>
-            <Button variant="outline" size="sm" onClick={() => signOut()} className="gap-2">
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
-          </div>
-        </header>
-        <main className="container mx-auto max-w-7xl px-4 py-8">
-          <div className="flex min-h-[60vh] items-center justify-center">
-            <div className="glass-card max-w-lg rounded-2xl p-10 text-center">
-              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-water/10">
-                <Mail className="h-8 w-8 text-water" />
-              </div>
-              <h1 className="text-2xl font-bold text-foreground">Subscription Required</h1>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Your account is not yet subscribed.
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Please check your email and confirm your subscription to activate your system.
-              </p>
-              <div className="mt-4 rounded-lg border border-water/20 bg-water/5 p-3 text-xs text-muted-foreground">
-                <p><span className="font-medium text-foreground">Plan:</span> AquaFlow Smart Irrigation</p>
-                <p><span className="font-medium text-foreground">Price:</span> ₱499 per month</p>
-                <p><span className="font-medium text-foreground">Includes:</span> System monitoring, automation, and maintenance support</p>
-              </div>
-              <div className="mt-6 flex flex-col gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => refreshSubscription()}
-                  className="gap-2 mx-auto"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh Subscription Status
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Already confirmed? Click refresh to update your status.
-                </p>
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  const userName =
-    (user.user_metadata?.name as string | undefined) ||
-    user.email?.split("@")[0] ||
+  const firstName =
+    (user.user_metadata?.firstName as string | undefined) ||
     "User";
+  const lastName =
+    (user.user_metadata?.lastName as string | undefined) ||
+    "";
+  const displayName = lastName ? `${firstName} ${lastName}` : firstName;
 
   return (
     <div className="min-h-screen">
@@ -258,15 +206,11 @@ function Dashboard() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-2 rounded-full border border-leaf/30 bg-leaf/5 px-3 py-1.5 text-xs sm:flex">
-                <CheckCircle2 className="h-3.5 w-3.5 text-leaf" />
-                <span className="font-medium text-leaf">Subscribed</span>
-              </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-leaf to-water text-xs font-bold text-primary-foreground">
-                {userName.charAt(0).toUpperCase()}
+                {displayName.charAt(0).toUpperCase()}
               </div>
               <span className="hidden text-sm font-medium text-foreground sm:block">
-                {userName}
+                {displayName}
               </span>
             </div>
             <Button variant="outline" size="sm" onClick={() => signOut()} className="gap-2">

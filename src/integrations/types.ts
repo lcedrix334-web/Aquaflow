@@ -14,35 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      subscriptions: {
-        Row: {
-          id: string
-          user_id: string
-          email: string
-          status: string
-          confirmation_token: string
-          confirmed_at: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          email: string
-          status?: string
-          confirmation_token: string
-          confirmed_at?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          email?: string
-          status?: string
-          confirmation_token?: string
-          confirmed_at?: string | null
-          created_at?: string
-        }
-      }
+      // Note: subscriptions table has been removed - no email-based authentication
     }
     Views: {
       [_ in never]: never
