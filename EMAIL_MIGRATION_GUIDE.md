@@ -127,7 +127,7 @@ URL=https://your-netlify-site.netlify.app
 | Variable | Purpose | Example | Required |
 |----------|---------|---------|----------|
 | `RESEND_API_KEY` | Resend API authentication key | `re_xxxxxxxxxxxxxxxxxxxxxxxx` | ✅ Yes |
-| `RESEND_FROM_EMAIL` | Sender email address (must be verified in Resend) | `noreply@aquaflow.com` or `onboarding@resend.dev` | ✅ Yes |
+| `RESEND_FROM_EMAIL` | Sender email address (must be verified in Resend) | `[your-email@domain.com]` or `[REDACTED]` | ✅ Yes |
 | `SUPABASE_URL` | Supabase project URL | `https://xxxxxxxxxxxxx.supabase.co` | ✅ Yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (bypasses RLS) | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` | ✅ Yes |
 | `URL` | Production site URL for confirmation links | `https://your-site.netlify.app` | ✅ Yes |
