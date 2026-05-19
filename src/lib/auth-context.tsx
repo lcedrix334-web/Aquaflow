@@ -1,21 +1,24 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useState,
+  useEffect,
   type ReactNode,
 } from "react";
 
-import type {
-  Session,
-  User,
-} from "@supabase/supabase-js";
-
 import { supabase } from "@/integrations/client";
 
+interface LocalUser {
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  password: string;
+}
+
 interface AuthContextValue {
-  user: User | null;
-  session: Session | null;
+  user: LocalUser | null;
+  session: null;
   loading: boolean;
 
   signIn: (
@@ -38,220 +41,213 @@ interface AuthContextValue {
 }
 
 const AuthContext =
-  createContext<AuthContextValue | undefined>(
-    undefined
-  );
+createContext<AuthContextValue | undefined>(
+  undefined
+);
 
 export function AuthProvider({
   children,
-}: {
-  children: ReactNode;
+}:{
+  children:ReactNode
 }) {
 
-  const [user, setUser] =
-    useState<User | null>(null);
+  const [user,setUser] =
+  useState<LocalUser | null>(null);
 
-  const [session, setSession] =
-    useState<Session | null>(null);
+  const [loading] =
+  useState(false);
 
-  const [loading, setLoading] =
-    useState(true);
+  useEffect(()=>{
 
-  useEffect(() => {
+    const savedUser =
+    localStorage.getItem(
+      "aquaflow_user"
+    );
 
-    let unsub: (() => void) | null =
-      null;
+    if(savedUser){
 
-    try {
-
-      const { data } =
-        supabase.auth.onAuthStateChange(
-          (_event, session) => {
-            setSession(session);
-            setUser(
-              session?.user ?? null
-            );
-          }
-        );
-
-      unsub = () =>
-        data.subscription.unsubscribe();
-
-      supabase.auth
-        .getSession()
-        .then(
-          ({
-            data: {
-              session
-            }
-          }) => {
-
-            setSession(
-              session
-            );
-
-            setUser(
-              session?.user ?? null
-            );
-
-            setLoading(
-              false
-            );
-          }
-        )
-        .catch((err) => {
-
-          console.error(
-            "Session error:",
-            err
-          );
-
-          setLoading(
-            false
-          );
-        });
-
-    } catch (err) {
-
-      console.error(
-        "Auth initialization failed:",
-        err
-      );
-
-      setLoading(
-        false
+      setUser(
+        JSON.parse(savedUser)
       );
     }
 
-    return () => {
-      unsub?.();
-    };
-
-  }, []);
-
-  // SIGN UP
+  },[]);
 
   async function signUp(
-    firstName: string,
-    lastName: string,
-    username: string,
-    password: string
-  ) {
+    firstName:string,
+    lastName:string,
+    username:string,
+    password:string
+  ){
 
-    try {
+    try{
 
-      // Valid hidden email
-      const generatedEmail =
-        `${username}@aquaflow.app`;
+      // Bypass Supabase generated type issues
+      const db =
+      supabase as any;
 
-      const { error } =
-        await supabase.auth.signUp({
+      // Check existing username
+      const {
+        data:existingUser
+      } =
+      await db
+      .from("subscriptions")
+      .select("username")
+      .eq(
+        "username",
+        username
+      )
+      .maybeSingle();
 
-          email:
-            generatedEmail,
+      if(existingUser){
 
-          password,
-
-          options: {
-
-            data: {
-
-              firstName,
-              lastName,
-              username,
-
-            }
-          }
-        });
-
-      if (error) {
-
-        return {
+        return{
           error:
-            error.message
+          "Username already exists"
         };
       }
 
-      return {
-        error: null
-      };
+      // Insert user
+      const {
+        error
+      } =
+      await db
+      .from("subscriptions")
+      .insert({
 
-    } catch (err: any) {
+        first_name:
+        firstName,
 
-      return {
+        last_name:
+        lastName,
+
+        username:
+        username,
+
+        password:
+        password,
+
+      });
+
+      return{
 
         error:
-          err.message ??
-          "Signup failed"
+        error?.message ??
+        null
+
+      };
+
+    }
+    catch(err:any){
+
+      return{
+
+        error:
+        err.message ??
+        "Signup failed"
 
       };
     }
   }
-
-  // LOGIN
 
   async function signIn(
-    username: string,
-    password: string
-  ) {
+    username:string,
+    password:string
+  ){
 
-    try {
+    try{
 
-      const generatedEmail =
-        `${username}@aquaflow.app`;
+      const db =
+      supabase as any;
 
-      const { error } =
-        await supabase.auth
-          .signInWithPassword({
+      const {
+        data,
+        error
+      } =
+      await db
+      .from("subscriptions")
+      .select("*")
+      .eq(
+        "username",
+        username
+      )
+      .single();
 
-            email:
-              generatedEmail,
+      if(
+        error ||
+        !data
+      ){
 
-            password,
-
-          });
-
-      if (error) {
-
-        return {
+        return{
 
           error:
-            error.message
+          "User not found"
 
         };
       }
 
-      return {
-        error: null
+      if(
+        data.password !==
+        password
+      ){
+
+        return{
+
+          error:
+          "Incorrect password"
+
+        };
+      }
+
+      setUser(
+        data
+      );
+
+      localStorage.setItem(
+        "aquaflow_user",
+        JSON.stringify(data)
+      );
+
+      return{
+        error:null
       };
 
-    } catch (err: any) {
+    }
+    catch(err:any){
 
-      return {
+      return{
 
         error:
-          err.message ??
-          "Login failed"
+        err.message ??
+        "Login failed"
 
       };
     }
   }
 
-  async function signOut() {
-    await supabase.auth.signOut();
+  async function signOut(){
+
+    localStorage.removeItem(
+      "aquaflow_user"
+    );
+
+    setUser(
+      null
+    );
   }
 
-  return (
+  return(
 
     <AuthContext.Provider
       value={{
 
         user,
-        session,
+        session:null,
         loading,
+
         signIn,
         signUp,
-        signOut,
+        signOut
 
       }}
     >
@@ -263,14 +259,14 @@ export function AuthProvider({
   );
 }
 
-export function useAuth() {
+export function useAuth(){
 
   const ctx =
-    useContext(
-      AuthContext
-    );
+  useContext(
+    AuthContext
+  );
 
-  if (!ctx) {
+  if(!ctx){
 
     throw new Error(
       "useAuth must be used within AuthProvider"
