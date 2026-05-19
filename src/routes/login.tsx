@@ -5,7 +5,7 @@ import { AquaLogo } from "@/components/AquaLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { User, Lock, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
@@ -21,7 +21,9 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+
+  // Changed email → username
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -32,13 +34,19 @@ function LoginPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+
     setLoading(true);
-    const { error } = await signIn(email, password);
+
+    // Changed email → username
+    const { error } = await signIn(username, password);
+
     setLoading(false);
+
     if (error) {
       toast.error(error);
       return;
     }
+
     toast.success("Welcome back!");
     navigate({ to: "/dashboard" });
   }
@@ -46,6 +54,7 @@ function LoginPage() {
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 py-12">
       <div className="absolute inset-0 starfield" />
+
       <div className="relative w-full max-w-md">
         <div className="mb-8 flex justify-center">
           <Link to="/">
@@ -55,34 +64,46 @@ function LoginPage() {
 
         <div className="glass-card rounded-2xl p-8 glow-leaf">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground">Welcome Back!</h1>
+            <h1 className="text-2xl font-bold text-foreground">
+              Welcome Back!
+            </h1>
+
             <p className="mt-1.5 text-sm text-muted-foreground">
               Login to access your dashboard
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+
+            {/* Username field */}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
+
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
                 <Input
-                  id="email"
-                  type="email"
+                  id="username"
+                  type="text"
                   required
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="username"
+                  placeholder="Enter username"
+                  value={username}
+                  onChange={(e) =>
+                    setUsername(e.target.value)
+                  }
                   className="pl-10"
                 />
               </div>
             </div>
 
+            {/* Password field */}
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
+
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
                 <Input
                   id="password"
                   type={showPwd ? "text" : "password"}
@@ -90,14 +111,21 @@ function LoginPage() {
                   autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) =>
+                    setPassword(e.target.value)
+                  }
                   className="px-10"
                 />
+
                 <button
                   type="button"
                   onClick={() => setShowPwd((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label={showPwd ? "Hide password" : "Show password"}
+                  aria-label={
+                    showPwd
+                      ? "Hide password"
+                      : "Show password"
+                  }
                 >
                   {showPwd ? (
                     <EyeOff className="h-4 w-4" />
@@ -105,17 +133,30 @@ function LoginPage() {
                     <Eye className="h-4 w-4" />
                   )}
                 </button>
+
               </div>
             </div>
 
-            <Button type="submit" variant="leaf" size="lg" className="w-full" disabled={loading}>
-              {loading ? "Logging in..." : "Login"}
+            <Button
+              type="submit"
+              variant="leaf"
+              size="lg"
+              className="w-full"
+              disabled={loading}
+            >
+              {loading
+                ? "Logging in..."
+                : "Login"}
             </Button>
+
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link to="/signup" className="font-medium text-leaf hover:underline">
+            <Link
+              to="/signup"
+              className="font-medium text-leaf hover:underline"
+            >
               Sign Up
             </Link>
           </p>
