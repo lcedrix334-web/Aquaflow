@@ -47,6 +47,7 @@ export function AuthProvider({
 }: {
   children: ReactNode;
 }) {
+
   const [user, setUser] =
     useState<User | null>(null);
 
@@ -57,14 +58,19 @@ export function AuthProvider({
     useState(true);
 
   useEffect(() => {
-    let unsub: (() => void) | null = null;
+
+    let unsub: (() => void) | null =
+      null;
 
     try {
+
       const { data } =
         supabase.auth.onAuthStateChange(
           (_event, session) => {
             setSession(session);
-            setUser(session?.user ?? null);
+            setUser(
+              session?.user ?? null
+            );
           }
         );
 
@@ -75,36 +81,52 @@ export function AuthProvider({
         .getSession()
         .then(
           ({
-            data: { session },
+            data: {
+              session
+            }
           }) => {
-            setSession(session);
+
+            setSession(
+              session
+            );
+
             setUser(
               session?.user ?? null
             );
-            setLoading(false);
+
+            setLoading(
+              false
+            );
           }
         )
         .catch((err) => {
+
           console.error(
             "Session error:",
             err
           );
 
-          setLoading(false);
+          setLoading(
+            false
+          );
         });
 
     } catch (err) {
+
       console.error(
         "Auth initialization failed:",
         err
       );
 
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
 
     return () => {
       unsub?.();
     };
+
   }, []);
 
   // SIGN UP
@@ -118,43 +140,50 @@ export function AuthProvider({
 
     try {
 
-      // Hidden email generated from username
+      // Valid hidden email
       const generatedEmail =
-        `${username}@aquaflow.local`;
+        `${username}@aquaflow.app`;
 
       const { error } =
         await supabase.auth.signUp({
-          email: generatedEmail,
+
+          email:
+            generatedEmail,
+
           password,
 
           options: {
-            emailRedirectTo:
-              `${window.location.origin}/dashboard`,
 
             data: {
+
               firstName,
               lastName,
               username,
-            },
-          },
+
+            }
+          }
         });
 
       if (error) {
+
         return {
-          error: error.message,
+          error:
+            error.message
         };
       }
 
       return {
-        error: null,
+        error: null
       };
 
     } catch (err: any) {
 
       return {
+
         error:
           err.message ??
-          "Signup failed",
+          "Signup failed"
+
       };
     }
   }
@@ -168,33 +197,42 @@ export function AuthProvider({
 
     try {
 
-      // recreate same generated email
       const generatedEmail =
-        `${username}@aquaflow.local`;
+        `${username}@aquaflow.app`;
 
       const { error } =
         await supabase.auth
           .signInWithPassword({
-            email: generatedEmail,
+
+            email:
+              generatedEmail,
+
             password,
+
           });
 
       if (error) {
+
         return {
-          error: error.message,
+
+          error:
+            error.message
+
         };
       }
 
       return {
-        error: null,
+        error: null
       };
 
     } catch (err: any) {
 
       return {
+
         error:
           err.message ??
-          "Login failed",
+          "Login failed"
+
       };
     }
   }
@@ -204,26 +242,36 @@ export function AuthProvider({
   }
 
   return (
+
     <AuthContext.Provider
       value={{
+
         user,
         session,
         loading,
         signIn,
         signUp,
         signOut,
+
       }}
     >
+
       {children}
+
     </AuthContext.Provider>
+
   );
 }
 
 export function useAuth() {
+
   const ctx =
-    useContext(AuthContext);
+    useContext(
+      AuthContext
+    );
 
   if (!ctx) {
+
     throw new Error(
       "useAuth must be used within AuthProvider"
     );
