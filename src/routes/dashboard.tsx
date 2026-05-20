@@ -166,10 +166,13 @@ function Dashboard() {
           setSoil1(newData.soil1);
           setSoil2(newData.soil2);
           setSoil3(newData.soil3);
-          setRelay1(newData.relay1);
-          setRelay2(newData.relay2);
-          setRelay3(newData.relay3);
-          setRelay4(newData.relay4);
+          // Only sync relay states from ESP32 during automatic mode
+          if (mode === "automatic") {
+            setRelay1(newData.relay1);
+            setRelay2(newData.relay2);
+            setRelay3(newData.relay3);
+            setRelay4(newData.relay4);
+          }
           setLastSensorTime(new Date(newData.created_at));
           setLastUpdate(new Date(newData.created_at));
           setHistory((h) => {
@@ -212,7 +215,7 @@ function Dashboard() {
       supabase.removeChannel(sensorChannel);
       supabase.removeChannel(controlChannel);
     };
-  }, [deviceId]);
+  }, [deviceId, mode]);
 
   // ---- ESP32 connection status check ----
   useEffect(() => {
@@ -274,19 +277,15 @@ function Dashboard() {
     const newValue =
       !relayMap[relayNum];
 
-    const { error } =
+    const { data, error } =
     await supabase
       .from("control_status")
       .update({
         [relayKey]: newValue,
-        updated_at:
-        new Date()
-        .toISOString()
+        updated_at: new Date().toISOString()
       })
-      .eq(
-        "device_id",
-        deviceId
-      );
+      .eq("device_id", deviceId)
+      .select();
 
     if(error)
     {
