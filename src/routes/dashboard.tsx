@@ -76,6 +76,7 @@ function Dashboard() {
   const [history, setHistory] = useState<MoisturePoint[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [systemReady, setSystemReady] = useState(false);
 
   // ---- Fetch initial data ----
   useEffect(() => {
@@ -102,6 +103,7 @@ function Dashboard() {
         setRelay4(sensorData.relay4);
         setLastSensorTime(new Date(sensorData.created_at));
         setLastUpdate(new Date(sensorData.created_at));
+        setSystemReady(true);
       }
 
       const { data: controlData, error: controlError } = await supabase
@@ -180,6 +182,7 @@ function Dashboard() {
             ];
             return updated.slice(-24);
           });
+          pushLog("Sensor update received", "Info");
         }
       )
       .subscribe();
@@ -216,8 +219,8 @@ function Dashboard() {
     const interval = setInterval(() => {
       if (!lastSensorTime) return;
       const now = new Date();
-      const diff = now.getTime() - lastSensorTime.getTime();
-      setEsp32Connected(diff < 30000);
+      const diff = Math.abs(now.getTime() - lastSensorTime.getTime());
+      setEsp32Connected(diff <= 30000);
     }, 5000);
     return () => {
       clearInterval(interval);
@@ -229,8 +232,8 @@ function Dashboard() {
     if (lastSensorTime) {
       const wasConnected = esp32Connected;
       const now = new Date();
-      const diff = now.getTime() - lastSensorTime.getTime();
-      const isConnected = diff < 30000;
+      const diff = Math.abs(now.getTime() - lastSensorTime.getTime());
+      const isConnected = diff <= 30000;
       if (wasConnected !== isConnected && logs.length > 0) {
         pushLog(`ESP32 ${isConnected ? "connected" : "disconnected"}`, isConnected ? "Success" : "Warning");
       }
@@ -256,7 +259,10 @@ function Dashboard() {
 
     const { error } = await supabase
       .from("control_status")
-      .update({ [relayKey]: newValue })
+      .update({
+        [relayKey]: newValue,
+        updated_at: new Date().toISOString()
+      })
       .eq("device_id", deviceId);
 
     if (error) {
@@ -273,7 +279,10 @@ function Dashboard() {
 
     const { error } = await supabase
       .from("control_status")
-      .update({ mode: newMode })
+      .update({
+        mode: newMode,
+        updated_at: new Date().toISOString()
+      })
       .eq("device_id", deviceId);
 
     if (error) {
@@ -300,12 +309,22 @@ function Dashboard() {
     );
   }
 
+  if (!systemReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center py-8">
+          Waiting for ESP32 data...
+        </div>
+      </div>
+    );
+  }
+
   const firstName =
-    (user.user_metadata?.firstName as string | undefined) ||
-    "User";
+    (user as any)?.user_metadata?.firstName || "User";
+
   const lastName =
-    (user.user_metadata?.lastName as string | undefined) ||
-    "";
+    (user as any)?.user_metadata?.lastName || "";
+
   const displayName = lastName ? `${firstName} ${lastName}` : firstName;
 
   return (
