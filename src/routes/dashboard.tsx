@@ -249,29 +249,62 @@ function Dashboard() {
 
   async function toggleRelay(relayNum: 1 | 2 | 3 | 4) {
     if (mode === "automatic") {
-      toast.error("Switch to Manual mode to control relays");
+      toast.error(
+        "Switch to Manual mode to control devices"
+      );
       return;
     }
 
-    const relayMap = { 1: relay1, 2: relay2, 3: relay3, 4: relay4 };
-    const relayKey = `relay${relayNum}` as "relay1" | "relay2" | "relay3" | "relay4";
-    const newValue = !relayMap[relayNum];
+    const relayMap = {
+      1: relay1,
+      2: relay2,
+      3: relay3,
+      4: relay4,
+    };
 
-    const { error } = await supabase
-      .from("control_status")
-      .update({
-        [relayKey]: newValue,
-        updated_at: new Date().toISOString()
-      })
-      .eq("device_id", deviceId);
+    const relayKey =
+      `relay${relayNum}` as
+      "relay1" |
+      "relay2" |
+      "relay3" |
+      "relay4";
 
-    if (error) {
-      console.error(error);
-      toast.error("Failed to update relay status");
+    const newValue =
+      !relayMap[relayNum];
+
+    const { error } =
+      await supabase
+        .from("control_status")
+        .update({
+          [relayKey]: newValue,
+          updated_at:
+          new Date()
+          .toISOString()
+        })
+        .eq(
+          "device_id",
+          deviceId
+        );
+
+    if(error)
+    {
+      toast.error(
+      "Failed to update"
+      );
       return;
     }
 
-    pushLog(`Zone ${relayNum} switched ${newValue ? "ON" : "OFF"}`, "Success");
+    pushLog(
+    `${
+    relayNum===1
+    ? "Pump"
+    : `Zone ${relayNum-1}` 
+    } ${
+    newValue
+    ? "ON"
+    : "OFF"
+    }`,
+    "Success");
   }
 
   async function handleModeChange(value: string) {
@@ -407,7 +440,7 @@ function Dashboard() {
           />
           <StatusCard
             label="Active Zones"
-            value={`${[relay1, relay2, relay3, relay4].filter(Boolean).length}/4`}
+            value={`${[relay2, relay3, relay4].filter(Boolean).length}/3`}
             sublabel="Valves open"
             sublabelClass="text-water"
             icon={<Droplet className="h-5 w-5" />}
@@ -491,39 +524,44 @@ function Dashboard() {
             </div>
 
             <div className="mt-6 space-y-4">
-              <ControlRow
-                label="Zone 1 Switch"
-                state={relay1 ? "ON" : "OFF"}
-                checked={relay1}
-                onChange={() => toggleRelay(1)}
-                disabled={mode === "automatic"}
-                accent="leaf"
-              />
-              <ControlRow
-                label="Zone 2 Switch"
-                state={relay2 ? "ON" : "OFF"}
-                checked={relay2}
-                onChange={() => toggleRelay(2)}
-                disabled={mode === "automatic"}
-                accent="leaf"
-              />
-              <ControlRow
-                label="Zone 3 Switch"
-                state={relay3 ? "ON" : "OFF"}
-                checked={relay3}
-                onChange={() => toggleRelay(3)}
-                disabled={mode === "automatic"}
-                accent="leaf"
-              />
-              <ControlRow
-                label="Zone 4 Switch"
-                state={relay4 ? "ON" : "OFF"}
-                checked={relay4}
-                onChange={() => toggleRelay(4)}
-                disabled={mode === "automatic"}
-                accent="water"
-              />
-            </div>
+
+<ControlRow
+label="Main Water Pump"
+state={relay1 ? "ON" : "OFF"}
+checked={relay1}
+onChange={() => toggleRelay(1)}
+disabled={mode==="automatic"}
+accent="water"
+/>
+
+<ControlRow
+label="Zone 1 Valve"
+state={relay2 ? "OPEN":"CLOSED"}
+checked={relay2}
+onChange={() => toggleRelay(2)}
+disabled={mode==="automatic"}
+accent="leaf"
+/>
+
+<ControlRow
+label="Zone 2 Valve"
+state={relay3 ? "OPEN":"CLOSED"}
+checked={relay3}
+onChange={() => toggleRelay(3)}
+disabled={mode==="automatic"}
+accent="leaf"
+/>
+
+<ControlRow
+label="Zone 3 Valve"
+state={relay4 ? "OPEN":"CLOSED"}
+checked={relay4}
+onChange={() => toggleRelay(4)}
+disabled={mode==="automatic"}
+accent="leaf"
+/>
+
+</div>
 
             {mode === "automatic" && (
               <p className="mt-4 rounded-lg border border-leaf/20 bg-leaf/5 p-3 text-xs text-leaf">
