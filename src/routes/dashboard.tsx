@@ -247,10 +247,12 @@ function Dashboard() {
     ]);
   }
 
-  async function toggleRelay(relayNum: 1 | 2 | 3 | 4) {
+  async function toggleRelay(
+    relayNum: 1 | 2 | 3 | 4
+  ) {
     if (mode === "automatic") {
       toast.error(
-        "Switch to Manual mode to control devices"
+        "Switch to Manual mode first"
       );
       return;
     }
@@ -273,38 +275,63 @@ function Dashboard() {
       !relayMap[relayNum];
 
     const { error } =
-      await supabase
-        .from("control_status")
-        .update({
-          [relayKey]: newValue,
-          updated_at:
-          new Date()
-          .toISOString()
-        })
-        .eq(
-          "device_id",
-          deviceId
-        );
+    await supabase
+      .from("control_status")
+      .update({
+        [relayKey]: newValue,
+        updated_at:
+        new Date()
+        .toISOString()
+      })
+      .eq(
+        "device_id",
+        deviceId
+      );
 
     if(error)
     {
+      console.error(error);
+
       toast.error(
-      "Failed to update"
+      "Failed to update relay"
       );
+
       return;
     }
 
+    // Immediate UI update
+
+    switch(relayNum)
+    {
+      case 1:
+        setRelay1(newValue);
+        break;
+
+      case 2:
+        setRelay2(newValue);
+        break;
+
+      case 3:
+        setRelay3(newValue);
+        break;
+
+      case 4:
+        setRelay4(newValue);
+        break;
+    }
+
     pushLog(
-    `${
-    relayNum===1
-    ? "Pump"
-    : `Zone ${relayNum-1}` 
-    } ${
-    newValue
-    ? "ON"
-    : "OFF"
-    }`,
-    "Success");
+      `${
+        relayNum===1
+        ? "Main Pump"
+        : `Valve ${relayNum-1}` 
+      } ${
+        newValue
+        ? "ON"
+        : "OFF"
+      }`,
+      "Success"
+    );
   }
 
   async function handleModeChange(value: string) {
