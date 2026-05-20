@@ -97,12 +97,15 @@ function Dashboard() {
         setSoil1(sensorData.soil1);
         setSoil2(sensorData.soil2);
         setSoil3(sensorData.soil3);
-        setRelay1(sensorData.relay1);
-        setRelay2(sensorData.relay2);
-        setRelay3(sensorData.relay3);
-        setRelay4(sensorData.relay4);
-        setLastSensorTime(new Date(sensorData.created_at));
-        setLastUpdate(new Date(sensorData.created_at));
+
+        setLastSensorTime(
+          new Date(sensorData.created_at)
+        );
+
+        setLastUpdate(
+          new Date(sensorData.created_at)
+        );
+
         setSystemReady(true);
       }
 
@@ -151,6 +154,7 @@ function Dashboard() {
 
   // ---- Supabase realtime subscriptions ----
   useEffect(() => {
+
     const sensorChannel = supabase
       .channel("sensor_data_changes")
       .on(
@@ -162,28 +166,54 @@ function Dashboard() {
           filter: `device_id=eq.${deviceId}`,
         },
         (payload) => {
+
           const newData = payload.new as any;
+
+          if (!newData) return;
+
+          // Soil readings only
           setSoil1(newData.soil1);
           setSoil2(newData.soil2);
           setSoil3(newData.soil3);
-          // sensor_data should only update moisture data
-          // relay state source of truth is control_status
-          setLastSensorTime(new Date(newData.created_at));
-          setLastUpdate(new Date(newData.created_at));
+
+          setLastSensorTime(
+            new Date(
+              newData.created_at
+            )
+          );
+
+          setLastUpdate(
+            new Date(
+              newData.created_at
+            )
+          );
+
           setHistory((h) => {
+
             const updated = [
               ...h,
               {
-                time: new Date(newData.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                value: newData.soil1,
-              },
+                time: new Date(
+                  newData.created_at
+                ).toLocaleTimeString(
+                  [],
+                  {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  }
+                ),
+                value: newData.soil1
+              }
             ];
+
             return updated.slice(-24);
+
           });
-          pushLog("Sensor update received", "Info");
+
         }
       )
       .subscribe();
+
 
     const controlChannel = supabase
       .channel("control_status_changes")
@@ -196,25 +226,41 @@ function Dashboard() {
           filter: `device_id=eq.${deviceId}`,
         },
         (payload) => {
-          const newData = payload.new as any;
+
+          const newData =
+            payload.new as any;
+
           if (!newData) return;
 
-          // Sync relay states
+          // Relay state source of truth
           setRelay1(newData.relay1);
           setRelay2(newData.relay2);
           setRelay3(newData.relay3);
           setRelay4(newData.relay4);
 
-          // Sync mode directly from database
-          setMode(newData.mode as "automatic" | "manual");
+          setMode(
+            newData.mode as
+            "automatic" |
+            "manual"
+          );
+
         }
       )
       .subscribe();
 
+
     return () => {
-      supabase.removeChannel(sensorChannel);
-      supabase.removeChannel(controlChannel);
+
+      supabase.removeChannel(
+        sensorChannel
+      );
+
+      supabase.removeChannel(
+        controlChannel
+      );
+
     };
+
   }, [deviceId]);
 
   // ---- ESP32 connection status check ----
