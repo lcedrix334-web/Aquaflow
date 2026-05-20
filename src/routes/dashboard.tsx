@@ -285,9 +285,10 @@ function Dashboard() {
         updated_at: new Date().toISOString()
       })
       .eq("device_id", deviceId)
-      .select();
+      .select()
+      .single();
 
-    if(error)
+    if(error || !data)
     {
       console.error(error);
 
@@ -336,22 +337,24 @@ function Dashboard() {
   async function handleModeChange(value: string) {
     const newMode = value as "automatic" | "manual";
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("control_status")
       .update({
         mode: newMode,
         updated_at: new Date().toISOString()
       })
-      .eq("device_id", deviceId);
+      .eq("device_id", deviceId)
+      .select()
+      .single();
 
-    if (error) {
+    if (error || !data) {
       console.error(error);
       toast.error("Failed to update mode");
       return;
     }
 
-    setMode(newMode);
-    pushLog(`Mode switched to ${newMode === "automatic" ? "Automatic" : "Manual"}`, "Info");
+    setMode(data.mode);
+    pushLog(`Mode changed to ${data.mode}`, "Info");
   }
 
   const getMoistureStatus = (value: number) => {
