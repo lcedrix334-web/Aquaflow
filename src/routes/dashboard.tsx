@@ -202,11 +202,13 @@ function Dashboard() {
         },
         (payload) => {
           const newData = payload.new as any;
-          setMode(newData.mode as "automatic" | "manual");
-          setRelay1(newData.relay1);
-          setRelay2(newData.relay2);
-          setRelay3(newData.relay3);
-          setRelay4(newData.relay4);
+          if (newData) {
+            setMode(newData.mode as "automatic" | "manual");
+            setRelay1(newData.relay1);
+            setRelay2(newData.relay2);
+            setRelay3(newData.relay3);
+            setRelay4(newData.relay4);
+          }
         }
       )
       .subscribe();
@@ -287,48 +289,22 @@ function Dashboard() {
       .eq("device_id", deviceId)
       .select();
 
-    if(error)
-    {
+    if (error) {
       console.error(error);
-
-      toast.error(
-      "Failed to update relay"
-      );
-
+      toast.error("Failed to update relay");
       return;
     }
 
-    // Immediate UI update
-
-    switch(relayNum)
-    {
-      case 1:
-        setRelay1(newValue);
-        break;
-
-      case 2:
-        setRelay2(newValue);
-        break;
-
-      case 3:
-        setRelay3(newValue);
-        break;
-
-      case 4:
-        setRelay4(newValue);
-        break;
+    // Sync from database result
+    if (data && data.length > 0) {
+      setRelay1(data[0].relay1);
+      setRelay2(data[0].relay2);
+      setRelay3(data[0].relay3);
+      setRelay4(data[0].relay4);
     }
 
     pushLog(
-      `${
-        relayNum===1
-        ? "Main Pump"
-        : `Valve ${relayNum-1}` 
-      } ${
-        newValue
-        ? "ON"
-        : "OFF"
-      }`,
+      `Relay ${relayNum} updated`,
       "Success"
     );
   }
@@ -345,18 +321,19 @@ function Dashboard() {
       .eq("device_id", deviceId)
       .select();
 
-    console.log("Mode data:", data);
-    console.log("Mode error:", error);
-
     if (error) {
-      console.error(error);
+      console.error("Mode error:", error);
       toast.error("Failed to update mode");
       return;
     }
 
+    // Update using database response
     if (data && data.length > 0) {
       setMode(data[0].mode);
-      pushLog(`Mode switched to ${data[0].mode}`, "Info");
+      pushLog(
+        `Mode changed to ${data[0].mode}`,
+        "Info"
+      );
     }
   }
 
