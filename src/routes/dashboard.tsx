@@ -285,10 +285,9 @@ function Dashboard() {
         updated_at: new Date().toISOString()
       })
       .eq("device_id", deviceId)
-      .select()
-      .single();
+      .select();
 
-    if(error || !data)
+    if(error)
     {
       console.error(error);
 
@@ -344,17 +343,21 @@ function Dashboard() {
         updated_at: new Date().toISOString()
       })
       .eq("device_id", deviceId)
-      .select()
-      .single();
+      .select();
 
-    if (error || !data) {
+    console.log("Mode data:", data);
+    console.log("Mode error:", error);
+
+    if (error) {
       console.error(error);
       toast.error("Failed to update mode");
       return;
     }
 
-    setMode(data.mode);
-    pushLog(`Mode changed to ${data.mode}`, "Info");
+    if (data && data.length > 0) {
+      setMode(data[0].mode);
+      pushLog(`Mode switched to ${data[0].mode}`, "Info");
+    }
   }
 
   const getMoistureStatus = (value: number) => {
