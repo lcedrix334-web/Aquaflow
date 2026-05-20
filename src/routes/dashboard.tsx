@@ -299,97 +299,105 @@ function Dashboard() {
   async function toggleRelay(
     relayNum: 1 | 2 | 3 | 4
   ) {
-    if (mode === "automatic") {
-      toast.error(
-        "Switch to Manual mode first"
+    if (mode !== "manual") {
+      alert(
+        "Switch to manual mode"
       );
       return;
     }
 
-    const relayMap = {
-      1: relay1,
-      2: relay2,
-      3: relay3,
-      4: relay4,
+    const state = {
+      relay1,
+      relay2,
+      relay3,
+      relay4
     };
 
-    const relayKey =
+    const key =
       `relay${relayNum}` as
-      "relay1" |
-      "relay2" |
-      "relay3" |
-      "relay4";
+      keyof typeof state;
 
-    const newValue =
-      !relayMap[relayNum];
+    state[key] =
+      !state[key];
 
-    const { data, error } =
-    await supabase
-      .from("control_status")
-      .update({
-        [relayKey]: newValue,
-        updated_at: new Date().toISOString()
-      })
-      .eq("device_id", deviceId)
-      .select();
+    const { error } =
+      await supabase
+        .from(
+          "control_status"
+        )
+        .upsert({
+          device_id: "AF-001",
+
+          mode,
+
+          relay1:
+            state.relay1,
+
+          relay2:
+            state.relay2,
+
+          relay3:
+            state.relay3,
+
+          relay4:
+            state.relay4,
+
+          updated_at:
+            new Date()
+              .toISOString()
+        });
 
     if (error) {
-      console.error(error);
-      toast.error("Failed to update relay");
+      console.log(error);
       return;
     }
 
-    // Sync from database result
-    if (data && data.length > 0) {
-      setRelay1(data[0].relay1);
-      setRelay2(data[0].relay2);
-      setRelay3(data[0].relay3);
-      setRelay4(data[0].relay4);
-    }
+    setRelay1(
+      state.relay1
+    );
 
-    pushLog(
-      `Relay ${relayNum} updated`,
-      "Success"
+    setRelay2(
+      state.relay2
+    );
+
+    setRelay3(
+      state.relay3
+    );
+
+    setRelay4(
+      state.relay4
     );
   }
 
-  async function handleModeChange(value: string) {
-    const previousMode = mode;
+  async function handleModeChange(
+    value: string
+  ) {
+    const newMode =
+      value as
+      "automatic" | "manual";
 
-    const newMode = value as "automatic" | "manual";
+    const { error } =
+      await supabase
+        .from("control_status")
+        .upsert({
+          device_id: "AF-001",
+          mode: newMode,
 
-    // Update dashboard immediately
-    setMode(newMode);
+          relay1,
+          relay2,
+          relay3,
+          relay4,
 
-    const { data, error } = await supabase
-      .from("control_status")
-      .update({
-        mode: newMode,
-        updated_at: new Date().toISOString()
-      })
-      .eq("device_id", deviceId)
-      .select();
+          updated_at:
+            new Date().toISOString()
+        });
 
     if (error) {
       console.error(error);
-
-      // Restore old state if DB update fails
-      setMode(previousMode);
-
-      toast.error("Failed to update mode");
-
       return;
     }
 
-    // Update using database response
-    if (data && data.length > 0) {
-      setMode(data[0].mode);
-    }
-
-    pushLog(
-      `Mode changed to ${newMode}`,
-      "Info"
-    );
+    setMode(newMode);
   }
 
   const getMoistureStatus = (value: number) => {

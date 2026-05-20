@@ -21,10 +21,9 @@ String SUPABASE_KEY =
 
 String DEVICE_ID = "AF-001";
 
-/* Latest command only */
 String commandURL =
 SUPABASE_URL +
-"/rest/v1/control_status?device_id=eq.AF-001&order=updated_at.desc&limit=1";
+"/rest/v1/control_status?select=*&device_id=eq.AF-001";
 
 String serverURL =
 SUPABASE_URL +
@@ -75,7 +74,7 @@ bool relay4State=false;
 String currentMode="automatic";
 
 unsigned long previousMillis=0;
-const long interval=1000;
+const long interval=3000;
 
 /* ==========================
    WIFI
@@ -209,9 +208,17 @@ void automaticControl()
 
 void checkCommands()
 {
+    if(
+        WiFi.status() !=
+        WL_CONNECTED
+    )
+    return;
+
     HTTPClient http;
 
-    http.begin(commandURL);
+    http.begin(
+        commandURL
+    );
 
     http.addHeader(
         "apikey",
@@ -220,73 +227,94 @@ void checkCommands()
 
     http.addHeader(
         "Authorization",
-        "Bearer " + SUPABASE_KEY
+        "Bearer "+
+        SUPABASE_KEY
     );
 
-    int code=http.GET();
+    int code=
+    http.GET();
 
-    if(code==200)
+    if(code!=200)
     {
-        String response=http.getString();
+        Serial.println(
+        "GET failed"
+        );
 
-        StaticJsonDocument<1024> doc;
+        http.end();
 
-        DeserializationError error=
-        deserializeJson(doc,response);
+        return;
+    }
 
-        if(error)
-        {
-            http.end();
-            return;
-        }
+    String response=
+    http.getString();
 
-        if(doc.size()==0)
-        {
-            http.end();
-            return;
-        }
+    Serial.println(
+        response
+    );
 
-        JsonObject data=doc[0];
+    StaticJsonDocument
+    <1024> doc;
 
-        currentMode=
-        data["mode"] |
-        "automatic";
+    DeserializationError
+    error=
+    deserializeJson(
+        doc,
+        response
+    );
 
-        Serial.print("Mode:");
-        Serial.println(currentMode);
+    if(error)
+    {
+        Serial.println(
+        "JSON Error"
+        );
 
-        if(currentMode=="manual")
-        {
-            relay1State=
-            data["relay1"] |
-            false;
+        http.end();
 
-            relay2State=
-            data["relay2"] |
-            false;
+        return;
+    }
 
-            relay3State=
-            data["relay3"] |
-            false;
+    JsonObject data=
+    doc[0];
 
-            relay4State=
-            data["relay4"] |
-            false;
+    currentMode=
+    data["mode"]
+    |
+    "automatic";
 
-            Serial.println(
-            "MANUAL MODE ACTIVE"
-            );
+    if(
+        currentMode==
+        "manual"
+    )
+    {
+        relay1State=
+        data["relay1"]
+        | false;
 
-            applyRelayStates();
-        }
-        else
-        {
-            automaticControl();
+        relay2State=
+        data["relay2"]
+        | false;
 
-            Serial.println(
-            "AUTO MODE ACTIVE"
-            );
-        }
+        relay3State=
+        data["relay3"]
+        | false;
+
+        relay4State=
+        data["relay4"]
+        | false;
+
+        Serial.println(
+        "MANUAL MODE"
+        );
+
+        applyRelayStates();
+    }
+    else
+    {
+        automaticControl();
+
+        Serial.println(
+        "AUTO MODE"
+        );
     }
 
     http.end();
