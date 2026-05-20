@@ -2,233 +2,163 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
-/* ==========================
-   WIFI SETTINGS
-========================== */
+const char* ssid="JIDIHOME 2.4";
+const char* password="JIDIConnect2026";
 
-const char* ssid = "JIDIHOME 2.4";
-const char* password = "JIDIConnect2026";
-
-/* ==========================
-   SUPABASE SETTINGS
-========================== */
-
-String SUPABASE_URL =
+String SUPABASE_URL=
 "https://tzdbfthqexfsttufmtoa.supabase.co";
 
-String SUPABASE_KEY =
+String SUPABASE_KEY=
 "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6ZGJmdGhxZXhmc3R0dWZtdG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTM3MjYsImV4cCI6MjA5NDcyOTcyNn0.ZUEgbez8Po8iyDBwuE0PyQdf7CRNHLlUr_sUmlNSt5U";
 
-String DEVICE_ID = "AF-001";
+String DEVICE_ID="AF-001";
 
-String commandURL =
-SUPABASE_URL +
+String COMMAND_URL=
+SUPABASE_URL+
 "/rest/v1/control_status?select=*&device_id=eq.AF-001";
 
-String serverURL =
-SUPABASE_URL +
+String SENSOR_URL=
+SUPABASE_URL+
 "/rest/v1/sensor_data";
-
-/* ==========================
-   SENSOR PINS
-========================== */
 
 #define SOIL1 35
 #define SOIL2 34
 #define SOIL3 32
-
-/* ==========================
-   RELAY PINS
-========================== */
-
-// Relay1 → Pump
-// Relay2 → Zone1 Valve
-// Relay3 → Zone2 Valve
-// Relay4 → Zone3 Valve
 
 #define RELAY1 21
 #define RELAY2 19
 #define RELAY3 18
 #define RELAY4 5
 
-/* ==========================
-   CALIBRATION
-========================== */
+const bool RELAY_ON=LOW;
+const bool RELAY_OFF=HIGH;
 
 int dryValue=3200;
 int wetValue=1400;
 
-/* ==========================
-   VARIABLES
-========================== */
+bool relay1=false;
+bool relay2=false;
+bool relay3=false;
+bool relay4=false;
 
-int moisture1=0;
-int moisture2=0;
-int moisture3=0;
-
-bool relay1State=false;
-bool relay2State=false;
-bool relay3State=false;
-bool relay4State=false;
-
-String currentMode="automatic";
+String mode="automatic";
 
 unsigned long previousMillis=0;
 const long interval=3000;
 
-/* ==========================
-   WIFI
-========================== */
-
 void connectWiFi()
 {
-    WiFi.begin(ssid,password);
-
-    Serial.print("Connecting");
-
-    int attempts=0;
-
-    while(
-    WiFi.status()!=WL_CONNECTED
-    &&
-    attempts<20)
-    {
-        delay(500);
-
-        Serial.print(".");
-
-        attempts++;
-    }
-
-    if(WiFi.status()==WL_CONNECTED)
-    {
-        Serial.println();
-
-        Serial.println(
-        "WiFi Connected"
-        );
-
-        Serial.print(
-        "IP:"
-        );
-
-        Serial.println(
-        WiFi.localIP()
-        );
-    }
-    else
-    {
-        Serial.println();
-
-        Serial.println(
-        "WiFi Failed"
-        );
-    }
-}
-
-/* ==========================
-   SENSOR READ
-========================== */
-
-int readMoisture(int pin)
-{
-    int raw=analogRead(pin);
-
-    int percent=
-    map(
-        raw,
-        dryValue,
-        wetValue,
-        0,
-        100
-    );
-
-    return constrain(
-        percent,
-        0,
-        100
-    );
-}
-
-/* ==========================
-   APPLY RELAYS
-========================== */
-
-void applyRelayStates()
-{
-    digitalWrite(
-        RELAY1,
-        relay1State ? LOW : HIGH
-    );
-
-    digitalWrite(
-        RELAY2,
-        relay2State ? LOW : HIGH
-    );
-
-    digitalWrite(
-        RELAY3,
-        relay3State ? LOW : HIGH
-    );
-
-    digitalWrite(
-        RELAY4,
-        relay4State ? LOW : HIGH
-    );
-}
-
-/* ==========================
-   AUTOMATIC IRRIGATION
-========================== */
-
-void automaticControl()
-{
-    relay2State =
-    moisture1 < 40;
-
-    relay3State =
-    moisture2 < 40;
-
-    relay4State =
-    moisture3 < 40;
-
-    /* Pump follows valves */
-
-    relay1State =
-    relay2State ||
-    relay3State ||
-    relay4State;
-
-    applyRelayStates();
-}
-
-/* ==========================
-   DASHBOARD COMMANDS
-========================== */
-
-void checkCommands()
-{
     if(
-        WiFi.status() !=
-        WL_CONNECTED
+      WiFi.status()==WL_CONNECTED
     )
     return;
 
+    WiFi.begin(
+      ssid,
+      password
+    );
+
+    Serial.print(
+      "Connecting"
+    );
+
+    while(
+      WiFi.status()!=WL_CONNECTED
+    )
+    {
+        delay(500);
+        Serial.print(".");
+    }
+
+    Serial.println();
+    Serial.println(
+      WiFi.localIP()
+    );
+}
+
+int readMoisture(
+    int pin
+)
+{
+    return constrain(
+        map(
+            analogRead(pin),
+            dryValue,
+            wetValue,
+            0,
+            100
+        ),
+        0,
+        100
+    );
+}
+
+void applyRelays()
+{
+    digitalWrite(
+      RELAY1,
+      relay1 ?
+      RELAY_ON :
+      RELAY_OFF
+    );
+
+    digitalWrite(
+      RELAY2,
+      relay2 ?
+      RELAY_ON :
+      RELAY_OFF
+    );
+
+    digitalWrite(
+      RELAY3,
+      relay3 ?
+      RELAY_ON :
+      RELAY_OFF
+    );
+
+    digitalWrite(
+      RELAY4,
+      relay4 ?
+      RELAY_ON :
+      RELAY_OFF
+    );
+}
+
+void automaticControl(
+    int s1,
+    int s2,
+    int s3
+)
+{
+    relay2=s1<40;
+    relay3=s2<40;
+    relay4=s3<40;
+
+    relay1=
+    relay2||
+    relay3||
+    relay4;
+
+    applyRelays();
+}
+
+void fetchCommands()
+{
     HTTPClient http;
 
     http.begin(
-        commandURL
+      COMMAND_URL
     );
 
     http.addHeader(
-        "apikey",
-        SUPABASE_KEY
+      "apikey",
+      SUPABASE_KEY
     );
 
     http.addHeader(
-        "Authorization",
-        "Bearer "+
-        SUPABASE_KEY
+      "Authorization",
+      "Bearer "+
+      SUPABASE_KEY
     );
 
     int code=
@@ -236,227 +166,119 @@ void checkCommands()
 
     if(code!=200)
     {
-        Serial.println(
-        "GET failed"
-        );
-
         http.end();
-
         return;
     }
 
-    String response=
-    http.getString();
+    DynamicJsonDocument
+    doc(1024);
 
-    Serial.println(
-        response
-    );
-
-    StaticJsonDocument
-    <1024> doc;
-
-    DeserializationError
-    error=
     deserializeJson(
-        doc,
-        response
+      doc,
+      http.getString()
     );
-
-    if(error)
-    {
-        Serial.println(
-        "JSON Error"
-        );
-
-        http.end();
-
-        return;
-    }
 
     JsonObject data=
     doc[0];
 
-    currentMode=
-    data["mode"]
-    |
+    mode=
+    data["mode"]|
     "automatic";
 
-    if(
-        currentMode==
-        "manual"
-    )
+    if(mode=="manual")
     {
-        relay1State=
-        data["relay1"]
-        | false;
+        relay1=
+        data["relay1"];
 
-        relay2State=
-        data["relay2"]
-        | false;
+        relay2=
+        data["relay2"];
 
-        relay3State=
-        data["relay3"]
-        | false;
+        relay3=
+        data["relay3"];
 
-        relay4State=
-        data["relay4"]
-        | false;
+        relay4=
+        data["relay4"];
 
-        Serial.println(
-        "MANUAL MODE"
-        );
-
-        applyRelayStates();
-    }
-    else
-    {
-        automaticControl();
-
-        Serial.println(
-        "AUTO MODE"
-        );
+        applyRelays();
     }
 
     http.end();
 }
-
-/* ==========================
-   SEND SENSOR DATA
-========================== */
-
-void sendData()
-{
-    HTTPClient http;
-
-    http.begin(serverURL);
-
-    http.addHeader(
-        "Content-Type",
-        "application/json"
-    );
-
-    http.addHeader(
-        "Prefer",
-        "return=minimal"
-    );
-
-    http.addHeader(
-        "apikey",
-        SUPABASE_KEY
-    );
-
-    http.addHeader(
-        "Authorization",
-        "Bearer " +
-        SUPABASE_KEY
-    );
-
-    StaticJsonDocument<512>
-    doc;
-
-    doc["device_id"]=DEVICE_ID;
-
-    doc["soil1"]=moisture1;
-    doc["soil2"]=moisture2;
-    doc["soil3"]=moisture3;
-
-    doc["relay1"]=relay1State;
-    doc["relay2"]=relay2State;
-    doc["relay3"]=relay3State;
-    doc["relay4"]=relay4State;
-
-    String payload;
-
-    serializeJson(
-        doc,
-        payload
-    );
-
-    int code=
-    http.POST(payload);
-
-    Serial.print(
-    "Upload:"
-    );
-
-    Serial.println(
-    code
-    );
-
-    http.end();
-}
-
-/* ==========================
-   SETUP
-========================== */
 
 void setup()
 {
-    Serial.begin(115200);
+    Serial.begin(
+      115200
+    );
+
+    pinMode(
+      SOIL1,
+      INPUT
+    );
+
+    pinMode(
+      SOIL2,
+      INPUT
+    );
+
+    pinMode(
+      SOIL3,
+      INPUT
+    );
 
     pinMode(RELAY1,OUTPUT);
     pinMode(RELAY2,OUTPUT);
     pinMode(RELAY3,OUTPUT);
     pinMode(RELAY4,OUTPUT);
 
-    digitalWrite(RELAY1,HIGH);
-    digitalWrite(RELAY2,HIGH);
-    digitalWrite(RELAY3,HIGH);
-    digitalWrite(RELAY4,HIGH);
+    applyRelays();
 
     connectWiFi();
 }
 
-/* ==========================
-   LOOP
-========================== */
-
 void loop()
 {
-    if(WiFi.status()!=WL_CONNECTED)
-    {
-        connectWiFi();
-    }
-
-    unsigned long currentMillis=
-    millis();
+    connectWiFi();
 
     if(
-    currentMillis-
-    previousMillis>=interval)
+      millis()-previousMillis
+      >=interval
+    )
     {
         previousMillis=
-        currentMillis;
+        millis();
 
-        moisture1=
-        readMoisture(SOIL1);
-
-        moisture2=
-        readMoisture(SOIL2);
-
-        moisture3=
-        readMoisture(SOIL3);
-
-        checkCommands();
-
-        sendData();
-
-        Serial.println(
-        "====== AQUAFLOW ======"
+        int s1=
+        readMoisture(
+          SOIL1
         );
 
-        Serial.print("Pump:");
-        Serial.println(relay1State);
+        int s2=
+        readMoisture(
+          SOIL2
+        );
 
-        Serial.print("Zone1:");
-        Serial.println(relay2State);
+        int s3=
+        readMoisture(
+          SOIL3
+        );
 
-        Serial.print("Zone2:");
-        Serial.println(relay3State);
+        fetchCommands();
 
-        Serial.print("Zone3:");
-        Serial.println(relay4State);
+        if(
+          mode==
+          "automatic"
+        )
+        {
+            automaticControl(
+              s1,
+              s2,
+              s3
+            );
+        }
 
-        Serial.println();
+        Serial.println(
+          mode
+        );
     }
 }

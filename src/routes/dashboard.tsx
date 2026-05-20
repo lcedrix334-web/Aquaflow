@@ -300,13 +300,13 @@ function Dashboard() {
     relayNum: 1 | 2 | 3 | 4
   ) {
     if (mode !== "manual") {
-      alert(
-        "Switch to manual mode"
+      toast.error(
+        "Switch to manual mode first"
       );
       return;
     }
 
-    const state = {
+    const updatedState = {
       relay1,
       relay2,
       relay3,
@@ -315,57 +315,44 @@ function Dashboard() {
 
     const key =
       `relay${relayNum}` as
-      keyof typeof state;
+      keyof typeof updatedState;
 
-    state[key] =
-      !state[key];
+    updatedState[key] =
+      !updatedState[key];
 
     const { error } =
       await supabase
-        .from(
-          "control_status"
-        )
-        .upsert({
-          device_id: "AF-001",
+        .from("control_status")
+        .upsert(
+          {
+            device_id: deviceId,
+            mode,
 
-          mode,
+            ...updatedState,
 
-          relay1:
-            state.relay1,
-
-          relay2:
-            state.relay2,
-
-          relay3:
-            state.relay3,
-
-          relay4:
-            state.relay4,
-
-          updated_at:
-            new Date()
-              .toISOString()
-        });
+            updated_at:
+              new Date()
+                .toISOString()
+          },
+          {
+            onConflict:
+              "device_id"
+          }
+        );
 
     if (error) {
-      console.log(error);
+      toast.error(
+        "Failed to update relay"
+      );
+
+      console.error(error);
+
       return;
     }
 
-    setRelay1(
-      state.relay1
-    );
-
-    setRelay2(
-      state.relay2
-    );
-
-    setRelay3(
-      state.relay3
-    );
-
-    setRelay4(
-      state.relay4
+    pushLog(
+      `Relay ${relayNum} updated`,
+      "Success"
     );
   }
 
@@ -374,30 +361,53 @@ function Dashboard() {
   ) {
     const newMode =
       value as
-      "automatic" | "manual";
+      "automatic" |
+      "manual";
 
     const { error } =
       await supabase
-        .from("control_status")
-        .upsert({
-          device_id: "AF-001",
-          mode: newMode,
+        .from(
+          "control_status"
+        )
+        .upsert(
+          {
+            device_id:
+              deviceId,
 
-          relay1,
-          relay2,
-          relay3,
-          relay4,
+            mode:
+              newMode,
 
-          updated_at:
-            new Date().toISOString()
-        });
+            relay1,
+            relay2,
+            relay3,
+            relay4,
+
+            updated_at:
+              new Date()
+                .toISOString()
+          },
+          {
+            onConflict:
+              "device_id"
+          }
+        );
 
     if (error) {
-      console.error(error);
+      toast.error(
+        "Mode update failed"
+      );
+
       return;
     }
 
-    setMode(newMode);
+    setMode(
+      newMode
+    );
+
+    pushLog(
+      `Mode changed → ${newMode}`,
+      "Info"
+    );
   }
 
   const getMoistureStatus = (value: number) => {
