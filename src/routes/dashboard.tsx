@@ -1,13 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { AquaLogo } from "@/components/AquaLogo";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   ResponsiveContainer,
@@ -18,8 +16,6 @@ import {
 } from "recharts";
 import {
   Droplet,
-  Power,
-  Gauge,
   Wifi,
   WifiOff,
   LogOut,
@@ -28,9 +24,9 @@ import {
   Activity,
   Cpu,
   Sprout,
-  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -57,6 +53,7 @@ interface ActivityLog {
 function Dashboard() {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const deviceId = import.meta.env.VITE_DEVICE_ID || "AF-001";
 
   // ---- Auth guard ----
   useEffect(() => {
@@ -65,63 +62,180 @@ function Dashboard() {
     }
   }, [loading, user, navigate]);
 
-  // ---- Simulated system state ----
+  // ---- Real system state ----
   const [mode, setMode] = useState<"automatic" | "manual">("automatic");
-  const [pumpOn, setPumpOn] = useState(true);
-  const [valveOpen, setValveOpen] = useState(true);
-  const [moisture, setMoisture] = useState(45);
-  const [esp32Connected] = useState(true);
-  const [history, setHistory] = useState<MoisturePoint[]>(() =>
-    Array.from({ length: 24 }, (_, i) => ({
-      time: `${String(i).padStart(2, "0")}:00`,
-      value: 35 + Math.round(Math.sin(i / 3) * 12 + Math.random() * 8),
-    }))
-  );
-  const [logs, setLogs] = useState<ActivityLog[]>([
-    { id: 1, time: nowTime(-2), activity: "Pump turned ON", status: "Success" },
-    { id: 2, time: nowTime(-3), activity: "Valve opened", status: "Success" },
-    { id: 3, time: nowTime(-5), activity: "Soil moisture: 45%", status: "Info" },
-    { id: 4, time: nowTime(-8), activity: "System check", status: "Success" },
-    { id: 5, time: nowTime(-12), activity: "ESP32 connected", status: "Success" },
-  ]);
+  const [soil1, setSoil1] = useState(0);
+  const [soil2, setSoil2] = useState(0);
+  const [soil3, setSoil3] = useState(0);
+  const [relay1, setRelay1] = useState(false);
+  const [relay2, setRelay2] = useState(false);
+  const [relay3, setRelay3] = useState(false);
+  const [relay4, setRelay4] = useState(false);
+  const [esp32Connected, setEsp32Connected] = useState(false);
+  const [lastSensorTime, setLastSensorTime] = useState<Date | null>(null);
+  const [history, setHistory] = useState<MoisturePoint[]>([]);
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  // ---- Real-time simulation tick ----
+  // ---- Fetch initial data ----
   useEffect(() => {
-    const id = setInterval(() => {
-      setLastUpdate(new Date());
-      setMoisture((m) => {
-        let next = m;
-        if (mode === "automatic") {
-          // Auto: pump on when dry, off when wet
-          if (m < 35 && !pumpOn) {
-            setPumpOn(true);
-            setValveOpen(true);
-            pushLog("Auto: pump turned ON (low moisture)", "Success");
-          } else if (m > 65 && pumpOn) {
-            setPumpOn(false);
-            setValveOpen(false);
-            pushLog("Auto: pump turned OFF (target reached)", "Success");
-          }
-        }
-        if (pumpOn && valveOpen) next = Math.min(85, m + 1.5 + Math.random());
-        else next = Math.max(15, m - 0.6 - Math.random() * 0.5);
-        return Math.round(next);
-      });
-    }, 2000);
-    return () => clearInterval(id);
-  }, [mode, pumpOn, valveOpen]);
+    async function fetchInitialData() {
+      const { data: sensorData, error: sensorError } = await supabase
+        .from("sensor_data")
+        .select("*")
+        .eq("device_id", deviceId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
-  // ---- Update chart history ----
+      if (sensorError) {
+        console.error("Error fetching sensor data:", sensorError);
+      }
+
+      if (!sensorError && sensorData) {
+        setSoil1(sensorData.soil1);
+        setSoil2(sensorData.soil2);
+        setSoil3(sensorData.soil3);
+        setRelay1(sensorData.relay1);
+        setRelay2(sensorData.relay2);
+        setRelay3(sensorData.relay3);
+        setRelay4(sensorData.relay4);
+        setLastSensorTime(new Date(sensorData.created_at));
+        setLastUpdate(new Date(sensorData.created_at));
+      }
+
+      const { data: controlData, error: controlError } = await supabase
+        .from("control_status")
+        .select("*")
+        .eq("device_id", deviceId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (controlError) {
+        console.error("Error fetching control status:", controlError);
+      }
+
+      if (!controlError && controlData) {
+        setMode(controlData.mode as "automatic" | "manual");
+        setRelay1(controlData.relay1);
+        setRelay2(controlData.relay2);
+        setRelay3(controlData.relay3);
+        setRelay4(controlData.relay4);
+      }
+
+      const { data: historyData, error: historyError } = await supabase
+        .from("sensor_data")
+        .select("created_at, soil1")
+        .eq("device_id", deviceId)
+        .order("created_at", { ascending: true })
+        .limit(24);
+
+      if (historyError) {
+        console.error("Error fetching history data:", historyError);
+      }
+
+      if (!historyError && historyData) {
+        const historyPoints: MoisturePoint[] = historyData.map((d) => ({
+          time: new Date(d.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          value: d.soil1,
+        }));
+        setHistory(historyPoints);
+      }
+    }
+
+    fetchInitialData();
+  }, [deviceId]);
+
+  // ---- Supabase realtime subscriptions ----
   useEffect(() => {
-    const id = setInterval(() => {
-      setHistory((h) => {
-        const next = [...h.slice(1), { time: nowTime(0), value: moisture }];
-        return next;
-      });
+    const sensorChannel = supabase
+      .channel("sensor_data_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "sensor_data",
+          filter: `device_id=eq.${deviceId}`,
+        },
+        (payload) => {
+          const newData = payload.new as any;
+          setSoil1(newData.soil1);
+          setSoil2(newData.soil2);
+          setSoil3(newData.soil3);
+          setRelay1(newData.relay1);
+          setRelay2(newData.relay2);
+          setRelay3(newData.relay3);
+          setRelay4(newData.relay4);
+          setLastSensorTime(new Date(newData.created_at));
+          setLastUpdate(new Date(newData.created_at));
+          setHistory((h) => {
+            const updated = [
+              ...h,
+              {
+                time: new Date(newData.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                value: newData.soil1,
+              },
+            ];
+            return updated.slice(-24);
+          });
+        }
+      )
+      .subscribe();
+
+    const controlChannel = supabase
+      .channel("control_status_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "control_status",
+          filter: `device_id=eq.${deviceId}`,
+        },
+        (payload) => {
+          const newData = payload.new as any;
+          setMode(newData.mode as "automatic" | "manual");
+          setRelay1(newData.relay1);
+          setRelay2(newData.relay2);
+          setRelay3(newData.relay3);
+          setRelay4(newData.relay4);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(sensorChannel);
+      supabase.removeChannel(controlChannel);
+    };
+  }, [deviceId]);
+
+  // ---- ESP32 connection status check ----
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!lastSensorTime) return;
+      const now = new Date();
+      const diff = now.getTime() - lastSensorTime.getTime();
+      setEsp32Connected(diff < 30000);
     }, 5000);
-    return () => clearInterval(id);
-  }, [moisture]);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [lastSensorTime]);
+
+  // ---- Log connection changes ----
+  useEffect(() => {
+    if (lastSensorTime) {
+      const wasConnected = esp32Connected;
+      const now = new Date();
+      const diff = now.getTime() - lastSensorTime.getTime();
+      const isConnected = diff < 30000;
+      if (wasConnected !== isConnected && logs.length > 0) {
+        pushLog(`ESP32 ${isConnected ? "connected" : "disconnected"}`, isConnected ? "Success" : "Warning");
+      }
+    }
+  }, [esp32Connected, lastSensorTime]);
 
   function pushLog(activity: string, status: ActivityLog["status"]) {
     setLogs((l) => [
@@ -130,41 +244,53 @@ function Dashboard() {
     ]);
   }
 
-  function togglePump() {
+  async function toggleRelay(relayNum: 1 | 2 | 3 | 4) {
     if (mode === "automatic") {
-      toast.error("Switch to Manual mode to control the pump");
+      toast.error("Switch to Manual mode to control relays");
       return;
     }
-    setPumpOn((p) => {
-      pushLog(`Pump turned ${!p ? "ON" : "OFF"}`, "Success");
-      return !p;
-    });
-  }
 
-  function toggleValve() {
-    if (mode === "automatic") {
-      toast.error("Switch to Manual mode to control the valve");
+    const relayMap = { 1: relay1, 2: relay2, 3: relay3, 4: relay4 };
+    const relayKey = `relay${relayNum}` as "relay1" | "relay2" | "relay3" | "relay4";
+    const newValue = !relayMap[relayNum];
+
+    const { error } = await supabase
+      .from("control_status")
+      .update({ [relayKey]: newValue })
+      .eq("device_id", deviceId);
+
+    if (error) {
+      console.error(error);
+      toast.error("Failed to update relay status");
       return;
     }
-    setValveOpen((v) => {
-      pushLog(`Valve ${!v ? "opened" : "closed"}`, "Success");
-      return !v;
-    });
+
+    pushLog(`Zone ${relayNum} switched ${newValue ? "ON" : "OFF"}`, "Success");
   }
 
-  function handleModeChange(value: string) {
-    const m = value as "automatic" | "manual";
-    setMode(m);
-    pushLog(`Mode switched to ${m === "automatic" ? "Automatic" : "Manual"}`, "Info");
+  async function handleModeChange(value: string) {
+    const newMode = value as "automatic" | "manual";
+
+    const { error } = await supabase
+      .from("control_status")
+      .update({ mode: newMode })
+      .eq("device_id", deviceId);
+
+    if (error) {
+      console.error(error);
+      toast.error("Failed to update mode");
+      return;
+    }
+
+    setMode(newMode);
+    pushLog(`Mode switched to ${newMode === "automatic" ? "Automatic" : "Manual"}`, "Info");
   }
 
-  const moistureStatus = useMemo(() => {
-    if (moisture < 30) return { label: "Low", color: "text-destructive" };
-    if (moisture > 70) return { label: "High", color: "text-water" };
+  const getMoistureStatus = (value: number) => {
+    if (value < 30) return { label: "Low", color: "text-destructive" };
+    if (value > 70) return { label: "High", color: "text-water" };
     return { label: "Optimal", color: "text-leaf" };
-  }, [moisture]);
-
-  const flowRate = pumpOn && valveOpen ? (1.8 + Math.random() * 0.8).toFixed(1) : "0.0";
+  };
 
   if (loading || !user) {
     return (
@@ -234,34 +360,36 @@ function Dashboard() {
         {/* Status cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatusCard
-            label="Soil Moisture"
-            value={`${moisture}%`}
-            sublabel={moistureStatus.label}
-            sublabelClass={moistureStatus.color}
+            label="Zone 1 Moisture"
+            value={`${soil1}%`}
+            sublabel={getMoistureStatus(soil1).label}
+            sublabelClass={getMoistureStatus(soil1).color}
             icon={<Sprout className="h-5 w-5" />}
             accent="leaf"
-            progress={moisture}
+            progress={soil1}
           />
           <StatusCard
-            label="Pump Status"
-            value={pumpOn ? "ON" : "OFF"}
-            sublabel={pumpOn ? "Running" : "Idle"}
-            sublabelClass={pumpOn ? "text-leaf" : "text-muted-foreground"}
-            icon={<Power className="h-5 w-5" />}
-            accent={pumpOn ? "leaf" : "muted"}
+            label="Zone 2 Moisture"
+            value={`${soil2}%`}
+            sublabel={getMoistureStatus(soil2).label}
+            sublabelClass={getMoistureStatus(soil2).color}
+            icon={<Sprout className="h-5 w-5" />}
+            accent="leaf"
+            progress={soil2}
           />
           <StatusCard
-            label="Valve Status"
-            value={valveOpen ? "OPEN" : "CLOSED"}
-            sublabel={valveOpen ? "Water flowing" : "Sealed"}
-            sublabelClass={valveOpen ? "text-water" : "text-muted-foreground"}
-            icon={<Gauge className="h-5 w-5" />}
-            accent={valveOpen ? "water" : "muted"}
+            label="Zone 3 Moisture"
+            value={`${soil3}%`}
+            sublabel={getMoistureStatus(soil3).label}
+            sublabelClass={getMoistureStatus(soil3).color}
+            icon={<Sprout className="h-5 w-5" />}
+            accent="leaf"
+            progress={soil3}
           />
           <StatusCard
-            label="Water Flow"
-            value={`${flowRate} L/m`}
-            sublabel="Flow rate"
+            label="Active Zones"
+            value={`${[relay1, relay2, relay3, relay4].filter(Boolean).length}/4`}
+            sublabel="Valves open"
             sublabelClass="text-water"
             icon={<Droplet className="h-5 w-5" />}
             accent="water"
@@ -345,18 +473,34 @@ function Dashboard() {
 
             <div className="mt-6 space-y-4">
               <ControlRow
-                label="Pump"
-                state={pumpOn ? "ON" : "OFF"}
-                checked={pumpOn}
-                onChange={togglePump}
+                label="Zone 1 Switch"
+                state={relay1 ? "ON" : "OFF"}
+                checked={relay1}
+                onChange={() => toggleRelay(1)}
                 disabled={mode === "automatic"}
                 accent="leaf"
               />
               <ControlRow
-                label="Valve"
-                state={valveOpen ? "OPEN" : "CLOSED"}
-                checked={valveOpen}
-                onChange={toggleValve}
+                label="Zone 2 Switch"
+                state={relay2 ? "ON" : "OFF"}
+                checked={relay2}
+                onChange={() => toggleRelay(2)}
+                disabled={mode === "automatic"}
+                accent="leaf"
+              />
+              <ControlRow
+                label="Zone 3 Switch"
+                state={relay3 ? "ON" : "OFF"}
+                checked={relay3}
+                onChange={() => toggleRelay(3)}
+                disabled={mode === "automatic"}
+                accent="leaf"
+              />
+              <ControlRow
+                label="Zone 4 Switch"
+                state={relay4 ? "ON" : "OFF"}
+                checked={relay4}
+                onChange={() => toggleRelay(4)}
                 disabled={mode === "automatic"}
                 accent="water"
               />
@@ -417,10 +561,17 @@ function Dashboard() {
               <InfoRow
                 label="Status"
                 value={
-                  <span className="inline-flex items-center gap-1.5 text-leaf">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-leaf" />
-                    Connected
-                  </span>
+                  esp32Connected ? (
+                    <span className="inline-flex items-center gap-1.5 text-leaf">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-leaf" />
+                      Connected
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-destructive">
+                      <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                      Disconnected
+                    </span>
+                  )
                 }
               />
               <InfoRow label="Uptime" value="2d 14h 32m" />
