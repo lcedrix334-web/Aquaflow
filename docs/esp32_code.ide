@@ -142,6 +142,60 @@ void automaticControl(
     applyRelays();
 }
 
+void sendData(
+    int moisture1,
+    int moisture2,
+    int moisture3
+)
+{
+    HTTPClient http;
+
+    http.begin(SENSOR_URL);
+
+    http.addHeader(
+      "apikey",
+      SUPABASE_KEY
+    );
+
+    http.addHeader(
+      "Authorization",
+      "Bearer "+
+      SUPABASE_KEY
+    );
+
+    http.addHeader(
+      "Content-Type",
+      "application/json"
+    );
+
+    DynamicJsonDocument doc(256);
+
+    doc["device_id"]=DEVICE_ID;
+    doc["soil1"]=moisture1;
+    doc["soil2"]=moisture2;
+    doc["soil3"]=moisture3;
+
+    String payload;
+    serializeJson(doc, payload);
+
+    int code=
+    http.POST(payload);
+
+    Serial.print("Soil1:");
+    Serial.println(moisture1);
+
+    Serial.print("Soil2:");
+    Serial.println(moisture2);
+
+    Serial.print("Soil3:");
+    Serial.println(moisture3);
+
+    Serial.print("Upload:");
+    Serial.println(code);
+
+    http.end();
+}
+
 void fetchCommands()
 {
     HTTPClient http;
@@ -262,6 +316,8 @@ void loop()
         readMoisture(
           SOIL3
         );
+
+        sendData(s1, s2, s3);
 
         fetchCommands();
 

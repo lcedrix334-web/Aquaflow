@@ -85,7 +85,7 @@ function Dashboard() {
         .from("sensor_data")
         .select("*")
         .eq("device_id", deviceId)
-        .order("created_at", { ascending: false })
+        .order("updated_at", { ascending: false })
         .limit(1)
         .single();
 
@@ -99,11 +99,11 @@ function Dashboard() {
         setSoil3(sensorData.soil3);
 
         setLastSensorTime(
-          new Date(sensorData.created_at)
+          new Date(sensorData.updated_at)
         );
 
         setLastUpdate(
-          new Date(sensorData.created_at)
+          new Date(sensorData.updated_at)
         );
 
         setSystemReady(true);
@@ -131,9 +131,9 @@ function Dashboard() {
 
       const { data: historyData, error: historyError } = await supabase
         .from("sensor_data")
-        .select("created_at, soil1")
+        .select("updated_at, soil1")
         .eq("device_id", deviceId)
-        .order("created_at", { ascending: true })
+        .order("updated_at", { ascending: true })
         .limit(24);
 
       if (historyError) {
@@ -142,7 +142,7 @@ function Dashboard() {
 
       if (!historyError && historyData) {
         const historyPoints: MoisturePoint[] = historyData.map((d) => ({
-          time: new Date(d.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          time: new Date(d.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           value: d.soil1,
         }));
         setHistory(historyPoints);
@@ -178,13 +178,13 @@ function Dashboard() {
 
           setLastSensorTime(
             new Date(
-              newData.created_at
+              newData.updated_at
             )
           );
 
           setLastUpdate(
             new Date(
-              newData.created_at
+              newData.updated_at
             )
           );
 
@@ -194,7 +194,7 @@ function Dashboard() {
               ...h,
               {
                 time: new Date(
-                  newData.created_at
+                  newData.updated_at
                 ).toLocaleTimeString(
                   [],
                   {
