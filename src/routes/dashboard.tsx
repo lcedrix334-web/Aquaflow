@@ -328,29 +328,38 @@ function Dashboard() {
 
   // ---- ESP32 connection status check ----
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!lastSensorTime) return;
-      const now = new Date();
-      const diff = Math.abs(now.getTime() - lastSensorTime.getTime());
-      setEsp32Connected(diff <= 30000);
-    }, 5000);
-    return () => {
-      clearInterval(interval);
-    };
-  }, [lastSensorTime]);
+    const interval =
+      setInterval(() => {
+        if (!lastSensorTime) {
+          setEsp32Connected(
+            false
+          );
 
-  // ---- Log connection changes ----
-  useEffect(() => {
-    if (lastSensorTime) {
-      const wasConnected = esp32Connected;
-      const now = new Date();
-      const diff = Math.abs(now.getTime() - lastSensorTime.getTime());
-      const isConnected = diff <= 30000;
-      if (wasConnected !== isConnected && logs.length > 0) {
-        pushLog(`ESP32 ${isConnected ? "connected" : "disconnected"}`, isConnected ? "Success" : "Warning");
-      }
-    }
-  }, [esp32Connected, lastSensorTime]);
+          return;
+        }
+
+        const now =
+          Date.now();
+
+        const diff =
+          now -
+          lastSensorTime.getTime();
+
+        setEsp32Connected(
+          diff < 10000
+        );
+
+      }, 1000);
+
+    return () =>
+      clearInterval(
+        interval
+      );
+
+  }, [
+    lastSensorTime
+  ]);
+
 
   function pushLog(activity: string, status: ActivityLog["status"]) {
     setLogs((l) => [
@@ -515,18 +524,18 @@ function Dashboard() {
           </Link>
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-2 rounded-full border border-border/50 bg-card/40 px-3 py-1.5 text-xs sm:flex">
-              {esp32Connected ? (
-                <>
-                  <Wifi className="h-3.5 w-3.5 text-leaf" />
-                  <span className="text-muted-foreground">ESP32</span>
-                  <span className="font-medium text-leaf">Connected</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="h-3.5 w-3.5 text-destructive" />
-                  <span className="text-destructive">Disconnected</span>
-                </>
-              )}
+              <div
+                className={
+                  esp32Connected
+                    ? "text-green-500"
+                    : "text-red-500"
+                }
+              >
+                {esp32Connected
+                  ? "🟢 ESP32 Connected"
+                  : "🔴 ESP32 Offline"
+                }
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-leaf to-water text-xs font-bold text-primary-foreground">
@@ -763,17 +772,18 @@ accent="leaf"
               <InfoRow
                 label="Status"
                 value={
-                  esp32Connected ? (
-                    <span className="inline-flex items-center gap-1.5 text-leaf">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-leaf" />
-                      Connected
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 text-destructive">
-                      <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
-                      Disconnected
-                    </span>
-                  )
+                  <div
+                    className={
+                      esp32Connected
+                        ? "text-green-500"
+                        : "text-red-500"
+                    }
+                  >
+                    {esp32Connected
+                      ? "🟢 Connected"
+                      : "🔴 Offline"
+                    }
+                  </div>
                 }
               />
               <InfoRow label="Uptime" value="2d 14h 32m" />
