@@ -166,13 +166,8 @@ function Dashboard() {
           setSoil1(newData.soil1);
           setSoil2(newData.soil2);
           setSoil3(newData.soil3);
-          // Only sync relay states from ESP32 during automatic mode
-          if (mode === "automatic") {
-            setRelay1(newData.relay1);
-            setRelay2(newData.relay2);
-            setRelay3(newData.relay3);
-            setRelay4(newData.relay4);
-          }
+          // sensor_data should only update moisture data
+          // relay state source of truth is control_status
           setLastSensorTime(new Date(newData.created_at));
           setLastUpdate(new Date(newData.created_at));
           setHistory((h) => {
@@ -202,13 +197,16 @@ function Dashboard() {
         },
         (payload) => {
           const newData = payload.new as any;
-          if (newData) {
-            setMode(newData.mode as "automatic" | "manual");
-            setRelay1(newData.relay1);
-            setRelay2(newData.relay2);
-            setRelay3(newData.relay3);
-            setRelay4(newData.relay4);
-          }
+          if (!newData) return;
+
+          // Sync relay states
+          setRelay1(newData.relay1);
+          setRelay2(newData.relay2);
+          setRelay3(newData.relay3);
+          setRelay4(newData.relay4);
+
+          // Sync mode directly from database
+          setMode(newData.mode as "automatic" | "manual");
         }
       )
       .subscribe();
@@ -317,13 +315,14 @@ function Dashboard() {
     // Update dashboard immediately
     setMode(newMode);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("control_status")
       .update({
         mode: newMode,
         updated_at: new Date().toISOString()
       })
-      .eq("device_id", deviceId);
+      .eq("device_id", deviceId)
+      .select();
 
     if (error) {
       console.error(error);
@@ -334,6 +333,11 @@ function Dashboard() {
       toast.error("Failed to update mode");
 
       return;
+    }
+
+    // Update using database response
+    if (data && data.length > 0) {
+      setMode(data[0].mode);
     }
 
     pushLog(

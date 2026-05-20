@@ -220,76 +220,40 @@ void checkCommands()
 
     http.addHeader(
         "Authorization",
-        "Bearer " +
-        SUPABASE_KEY
+        "Bearer " + SUPABASE_KEY
     );
 
     int code=http.GET();
 
-    Serial.print(
-    "HTTP:"
-    );
-
-    Serial.println(
-    code
-    );
-
     if(code==200)
     {
-        String response=
-        http.getString();
+        String response=http.getString();
 
-        Serial.println(
-        response
-        );
-
-        StaticJsonDocument<1024>
-        doc;
+        StaticJsonDocument<1024> doc;
 
         DeserializationError error=
-        deserializeJson(
-            doc,
-            response
-        );
+        deserializeJson(doc,response);
 
         if(error)
         {
-            Serial.println(
-            "JSON ERROR"
-            );
-
             http.end();
-
             return;
         }
 
         if(doc.size()==0)
         {
-            Serial.println(
-            "No command data"
-            );
-
             http.end();
-
             return;
         }
 
-        JsonObject data=
-        doc[0];
+        JsonObject data=doc[0];
 
         currentMode=
         data["mode"] |
         "automatic";
 
-        Serial.print(
-        "Mode:"
-        );
-
-        Serial.println(
-        currentMode
-        );
-
-        /* Manual mode only */
+        Serial.print("Mode:");
+        Serial.println(currentMode);
 
         if(currentMode=="manual")
         {
@@ -309,10 +273,18 @@ void checkCommands()
             data["relay4"] |
             false;
 
+            Serial.println(
+            "MANUAL MODE ACTIVE"
+            );
+
             applyRelayStates();
+        }
+        else
+        {
+            automaticControl();
 
             Serial.println(
-            "MANUAL ACTIVE"
+            "AUTO MODE ACTIVE"
             );
         }
     }
@@ -438,15 +410,6 @@ void loop()
         readMoisture(SOIL3);
 
         checkCommands();
-
-        if(currentMode=="automatic")
-        {
-            automaticControl();
-
-            Serial.println(
-            "AUTO ACTIVE"
-            );
-        }
 
         sendData();
 
