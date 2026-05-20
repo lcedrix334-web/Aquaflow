@@ -79,77 +79,140 @@ function Dashboard() {
   const [systemReady, setSystemReady] = useState(false);
 
   // ---- Fetch initial data ----
-  useEffect(() => {
-    async function fetchInitialData() {
-      const { data: sensorData, error: sensorError } = await supabase
-        .from("sensor_data")
+  async function fetchSensorData() {
+    const {
+      data,
+      error
+    } =
+      await supabase
+        .from(
+          "sensor_data"
+        )
         .select("*")
-        .eq("device_id", deviceId)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .single();
+        .eq(
+          "device_id",
+          "AF-001"
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false
+          }
+        )
+        .limit(1);
 
-      if (sensorError) {
-        console.error("Error fetching sensor data:", sensorError);
-      }
-
-      if (!sensorError && sensorData) {
-        setSoil1(sensorData.soil1);
-        setSoil2(sensorData.soil2);
-        setSoil3(sensorData.soil3);
-
-        setLastSensorTime(
-          new Date(sensorData.updated_at)
-        );
-
-        setLastUpdate(
-          new Date(sensorData.updated_at)
-        );
-
-        setSystemReady(true);
-      }
-
-      const { data: controlData, error: controlError } = await supabase
-        .from("control_status")
-        .select("*")
-        .eq("device_id", deviceId)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (controlError) {
-        console.error("Error fetching control status:", controlError);
-      }
-
-      if (!controlError && controlData) {
-        setMode(controlData.mode as "automatic" | "manual");
-        setRelay1(controlData.relay1);
-        setRelay2(controlData.relay2);
-        setRelay3(controlData.relay3);
-        setRelay4(controlData.relay4);
-      }
-
-      const { data: historyData, error: historyError } = await supabase
-        .from("sensor_data")
-        .select("updated_at, soil1")
-        .eq("device_id", deviceId)
-        .order("updated_at", { ascending: true })
-        .limit(24);
-
-      if (historyError) {
-        console.error("Error fetching history data:", historyError);
-      }
-
-      if (!historyError && historyData) {
-        const historyPoints: MoisturePoint[] = historyData.map((d) => ({
-          time: new Date(d.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          value: d.soil1,
-        }));
-        setHistory(historyPoints);
-      }
+    if (error) {
+      console.log(
+        "Sensor error:",
+        error
+      );
+      return;
     }
 
-    fetchInitialData();
+    if (
+      !data ||
+      data.length === 0
+    ) {
+      console.log(
+        "No sensor data"
+      );
+
+      return;
+    }
+
+    const sensor =
+      data[0];
+
+    setSoil1(
+      sensor.soil1 ?? 0
+    );
+
+    setSoil2(
+      sensor.soil2 ?? 0
+    );
+
+    setSoil3(
+      sensor.soil3 ?? 0
+    );
+
+    setLastSensorTime(
+      new Date(
+        sensor.created_at
+      )
+    );
+
+    setLastUpdate(
+      new Date(
+        sensor.created_at
+      )
+    );
+
+    setSystemReady(true);
+
+    console.log(
+      sensor
+    );
+  }
+
+  async function fetchControlData() {
+    const { data: controlData, error: controlError } = await supabase
+      .from("control_status")
+      .select("*")
+      .eq("device_id", deviceId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (controlError) {
+      console.error("Error fetching control status:", controlError);
+    }
+
+    if (!controlError && controlData) {
+      setMode(controlData.mode as "automatic" | "manual");
+      setRelay1(controlData.relay1);
+      setRelay2(controlData.relay2);
+      setRelay3(controlData.relay3);
+      setRelay4(controlData.relay4);
+    }
+  }
+
+  async function fetchHistoryData() {
+    const { data: historyData, error: historyError } = await supabase
+      .from("sensor_data")
+      .select("created_at, soil1")
+      .eq("device_id", deviceId)
+      .order("created_at", { ascending: true })
+      .limit(24);
+
+    if (historyError) {
+      console.error("Error fetching history data:", historyError);
+    }
+
+    if (!historyError && historyData) {
+      const historyPoints: MoisturePoint[] = historyData.map((d) => ({
+        time: new Date(d.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        value: d.soil1,
+      }));
+      setHistory(historyPoints);
+    }
+  }
+
+  useEffect(() => {
+    fetchSensorData();
+    fetchControlData();
+    fetchHistoryData();
+
+    const interval =
+      setInterval(
+        fetchSensorData,
+        3000
+      );
+
+    return () =>
+      clearInterval(
+        interval
+      );
+
   }, [deviceId]);
 
   // ---- Supabase realtime subscriptions ----
@@ -178,13 +241,13 @@ function Dashboard() {
 
           setLastSensorTime(
             new Date(
-              newData.updated_at
+              newData.created_at
             )
           );
 
           setLastUpdate(
             new Date(
-              newData.updated_at
+              newData.created_at
             )
           );
 
@@ -194,7 +257,7 @@ function Dashboard() {
               ...h,
               {
                 time: new Date(
-                  newData.updated_at
+                  newData.created_at
                 ).toLocaleTimeString(
                   [],
                   {
