@@ -217,7 +217,7 @@ function Dashboard() {
       supabase.removeChannel(sensorChannel);
       supabase.removeChannel(controlChannel);
     };
-  }, [deviceId, mode]);
+  }, [deviceId]);
 
   // ---- ESP32 connection status check ----
   useEffect(() => {
@@ -310,31 +310,36 @@ function Dashboard() {
   }
 
   async function handleModeChange(value: string) {
+    const previousMode = mode;
+
     const newMode = value as "automatic" | "manual";
 
-    const { data, error } = await supabase
+    // Update dashboard immediately
+    setMode(newMode);
+
+    const { error } = await supabase
       .from("control_status")
       .update({
         mode: newMode,
         updated_at: new Date().toISOString()
       })
-      .eq("device_id", deviceId)
-      .select();
+      .eq("device_id", deviceId);
 
     if (error) {
-      console.error("Mode error:", error);
+      console.error(error);
+
+      // Restore old state if DB update fails
+      setMode(previousMode);
+
       toast.error("Failed to update mode");
+
       return;
     }
 
-    // Update using database response
-    if (data && data.length > 0) {
-      setMode(data[0].mode);
-      pushLog(
-        `Mode changed to ${data[0].mode}`,
-        "Info"
-      );
-    }
+    pushLog(
+      `Mode changed to ${newMode}`,
+      "Info"
+    );
   }
 
   const getMoistureStatus = (value: number) => {
